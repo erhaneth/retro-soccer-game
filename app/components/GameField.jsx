@@ -42,11 +42,17 @@ const sketch = (s) => {
   // Center circle (semicircle at bottom)
   const centerCircleRadius = 5 * pixelsPerYard; // ~66.65 pixels
 
+  // In the sketch's setup function:
   s.setup = () => {
     s.createCanvas(800, 800);
     s.noSmooth();
     s.pixelDensity(1);
-    player = new Player(s, 1, 1);
+
+    // Modified Player initialization with shot callback
+    player = new Player(s, 1, 1, () => {
+      shotsTaken += 1; // This increments on EVERY kick attempt
+    });
+
     goalkeeper = new Goalkeeper(s, 1, 1, difficulty);
     ball = new Ball(s, 1, 1, player.x, player.y, player.aimAngle, goalkeeper);
   };
@@ -78,6 +84,8 @@ const sketch = (s) => {
           goalMessageTimer = 60;
           netColorChangeTimer = 60;
           ball.resetToPenalty(s.width / 2, penaltyMarkY);
+          player.x = s.width / 2;
+          player.y = penaltyMarkY + 50;
           console.log("Crowd cheers: 'GOOOAL!'");
         }
       }

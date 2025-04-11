@@ -1,5 +1,5 @@
 export class Player {
-  constructor(p, scaleX, scaleY) {
+  constructor(p, scaleX, scaleY, onShotCallback) {
     this.p = p;
     this.scaleX = scaleX;
     this.scaleY = scaleY;
@@ -20,6 +20,7 @@ export class Player {
     this.legFrame = 0;
     this.frameSpeed = 0.1;
     this.moveDirection = { x: 0, y: 0 };
+    this.onShotCallback = onShotCallback;
   }
 
   update(ball, goalkeeper) {
@@ -62,6 +63,7 @@ export class Player {
       if (distance < 30 * this.scaleX) {
         const power = this.kickPower * 15;
         ball.kick(power, this.aimAngle);
+        this.onShotCallback();
       }
       this.isCharging = false;
       this.kickPower = 0;

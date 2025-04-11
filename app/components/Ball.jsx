@@ -153,22 +153,37 @@ export class Ball {
     }
   }
 
+  //   checkGoal() {
+  //     // Use circle-rectangle collision detection so that the entire ball counts toward a goal
+  //     const goalX = this.p.goalX;
+  //     const goalY = this.p.goalY;
+  //     const goalWidth = this.p.goalWidth;
+  //     const goalHeight = this.p.goalHeight;
+  //     const ballRadius = 10 * this.scaleX;
+
+  //     // Find the closest point within the goal rectangle to the ball's center
+  //     const closestX = Math.max(goalX, Math.min(this.ballX, goalX + goalWidth));
+  //     const closestY = Math.max(goalY, Math.min(this.ballY, goalY + goalHeight));
+
+  //     const dx = this.ballX - closestX;
+  //     const dy = this.ballY - closestY;
+
+  //     return dx * dx + dy * dy <= ballRadius * ballRadius;
+  //   }
   checkGoal() {
-    // Use circle-rectangle collision detection so that the entire ball counts toward a goal
     const goalX = this.p.goalX;
     const goalY = this.p.goalY;
     const goalWidth = this.p.goalWidth;
     const goalHeight = this.p.goalHeight;
     const ballRadius = 10 * this.scaleX;
 
-    // Find the closest point within the goal rectangle to the ball's center
-    const closestX = Math.max(goalX, Math.min(this.ballX, goalX + goalWidth));
-    const closestY = Math.max(goalY, Math.min(this.ballY, goalY + goalHeight));
-
-    const dx = this.ballX - closestX;
-    const dy = this.ballY - closestY;
-
-    return dx * dx + dy * dy <= ballRadius * ballRadius;
+    // Check if the entire ball is within goal boundaries
+    return (
+      this.ballX - ballRadius >= goalX &&
+      this.ballX + ballRadius <= goalX + goalWidth &&
+      this.ballY - ballRadius >= goalY &&
+      this.ballY + ballRadius <= goalY + goalHeight
+    );
   }
 
   draw() {

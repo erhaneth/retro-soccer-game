@@ -4,7 +4,7 @@ import React, { useRef, useEffect } from "react";
 import { Player } from "./Player";
 import { Goalkeeper } from "./Goalkeeper";
 import { Ball } from "./Ball";
-
+import LogoBanner from "./LogoBanner";
 const sketch = (s) => {
   let player;
   let goalkeeper;
@@ -16,41 +16,45 @@ const sketch = (s) => {
   let goalMessageTimer = 0;
   let netColorChangeTimer = 0;
   let difficulty = "medium";
+  let adImage; // Store the advertisement image
 
-  // Scaling factor: 13.33 pixels per yard
+  // Scaling factor
   const pixelsPerYard = 13.33;
 
-  // Field dimensions in pixels (half-field)
-  const fieldWidth = 60 * pixelsPerYard; // 800 pixels
-  const fieldHeight = 50 * pixelsPerYard; // 666.5 pixels, but we'll use 800 for canvas
+  // Field dimensions
+  const fieldWidth = 60 * pixelsPerYard;
+  const fieldHeight = 50 * pixelsPerYard;
 
   // Goal dimensions
   const goalWidth = 8 * pixelsPerYard * 2.6; // ~106.64 pixels
   const goalHeight = 2.67 * pixelsPerYard * 1.8; // ~35.59 pixels
 
-  // Penalty area dimensions (increased for a larger area)
-  const penaltyAreaWidth = 50 * pixelsPerYard; // increased from 44 yards
-  const penaltyAreaHeight = 25 * pixelsPerYard; // increased from 18 yards
+  // Penalty area
+  const penaltyAreaWidth = 50 * pixelsPerYard;
+  const penaltyAreaHeight = 25 * pixelsPerYard;
 
-  // Penalty mark (moved further away from the goalkeeper)
-  const penaltyMarkY = 20 * pixelsPerYard; // increased from 12 yards
+  // Penalty mark
+  const penaltyMarkY = 20 * pixelsPerYard;
 
-  // Goal area dimensions
-  const goalAreaWidth = 20 * pixelsPerYard; // ~266.6 pixels
-  const goalAreaHeight = 6 * pixelsPerYard; // ~79.98 pixels
+  // Goal area
+  const goalAreaWidth = 20 * pixelsPerYard;
+  const goalAreaHeight = 6 * pixelsPerYard;
 
-  // Center circle (semicircle at bottom)
-  const centerCircleRadius = 5 * pixelsPerYard; // ~66.65 pixels
+  // Center circle
+  const centerCircleRadius = 5 * pixelsPerYard;
 
-  // In the sketch's setup function:
+  s.preload = () => {
+    // Load the advertisement image
+    adImage = s.loadImage("/icon-192x192.png");
+  };
+
   s.setup = () => {
     s.createCanvas(800, 800);
     s.noSmooth();
     s.pixelDensity(1);
 
-    // Modified Player initialization with shot callback
     player = new Player(s, 1, 1, () => {
-      shotsTaken += 1; // This increments on EVERY kick attempt
+      shotsTaken += 1;
     });
 
     goalkeeper = new Goalkeeper(s, 1, 1, difficulty);
@@ -60,6 +64,7 @@ const sketch = (s) => {
   s.draw = () => {
     if (!gameOver) {
       drawBackground(s);
+      drawAds(s); // Draw ads before field and goal
       drawField(s);
       drawPenaltyArea(s);
       drawGoal(s, netColorChangeTimer);
@@ -106,12 +111,35 @@ const sketch = (s) => {
   };
 
   function drawBackground(s) {
-    s.background(50, 50, 100);
+    s.background(50, 50, 100); // Stadium atmosphere
     s.fill(100, 100, 100);
-    s.rect(0, 0, s.width, 50);
+    s.rect(0, 0, s.width, 50); // Crowd area
     for (let x = 0; x < s.width; x += 10) {
       s.fill(s.random(100, 255), s.random(100, 255), s.random(100, 255));
-      s.circle(x, s.random(10, 40), 5);
+      s.circle(x, s.random(10, 40), 5); // Crowd effect
+    }
+  }
+
+  function drawAds(s) {
+    if (adImage) {
+      const adWidth = goalWidth * 1.5; // Slightly wider than goal (~160 pixels)
+      const adHeight = adWidth * (192 / 192); // Maintain aspect ratio (~160 pixels)
+      const adX = s.width / 2 - adWidth / 2; // Center behind goal
+      const adY = 0; // At ground level, behind goal posts
+
+      // Draw a background board for the ad
+      s.fill(255, 255, 255, 200); // White board with slight transparency
+      s.noStroke();
+      s.rect(adX - 5, adY - 5, adWidth + 10, adHeight + 10); // Slight padding
+
+      // Draw the ad image
+      s.image(adImage, adX, adY, adWidth, adHeight);
+
+      // Optional: Add a border to mimic a billboard
+      s.noFill();
+      s.stroke(0, 100);
+      s.strokeWeight(2);
+      s.rect(adX - 5, adY - 5, adWidth + 10, adHeight + 10);
     }
   }
 
@@ -125,17 +153,14 @@ const sketch = (s) => {
       s.rect(0, y + stripeHeight, s.width, stripeHeight);
     }
 
-    // Goal line at the top
     s.fill(255);
     s.noStroke();
     s.rect(0, 0, s.width, 4);
 
-    // Midfield line (bottom of the half-field)
     s.fill(255);
     s.noStroke();
     s.rect(0, s.height - 4, s.width, 4);
 
-    // Center circle (semicircle at the bottom)
     s.noFill();
     s.stroke(255);
     s.strokeWeight(2);
@@ -155,22 +180,18 @@ const sketch = (s) => {
     s.stroke(255);
     s.strokeWeight(2);
     s.noFill();
-
-    // Draw the larger penalty area
     s.rect(boxX, boxY, penaltyAreaWidth, penaltyAreaHeight);
 
-    // Penalty mark (moved further from the goalkeeper)
     const penaltySpotX = s.width / 2;
     const penaltySpotY = penaltyMarkY;
     s.fill(255);
     s.noStroke();
     s.circle(penaltySpotX, penaltySpotY, 8);
 
-    // Penalty arc
     s.noFill();
     s.stroke(255);
     s.strokeWeight(2);
-    const arcRadius = 15 * pixelsPerYard; // 10 yards radius
+    const arcRadius = 15 * pixelsPerYard;
     s.arc(
       penaltySpotX,
       penaltySpotY,
@@ -181,7 +202,6 @@ const sketch = (s) => {
       s.OPEN
     );
 
-    // Goal area within penalty area
     const goalAreaX = s.width / 2 - goalAreaWidth / 2;
     const goalAreaY = 0;
     s.stroke(255);
@@ -194,18 +214,12 @@ const sketch = (s) => {
     const goalX = s.width / 2 - goalWidth / 2;
     const goalY = 0;
 
-    // Crossbar
     s.fill(255);
     s.noStroke();
     s.rect(goalX, goalY, goalWidth, 8);
-
-    // Left post
     s.rect(goalX, goalY, 8, goalHeight);
-
-    // Right post
     s.rect(goalX + goalWidth - 8, goalY, 8, goalHeight);
 
-    // Net drawing
     const netTopY = goalY + 8;
     const netBottomY = goalY + goalHeight;
     const inset = 20;
@@ -306,5 +320,10 @@ export default function GameField() {
     }
   }, []);
 
-  return <div ref={sketchRef} />;
+  return (
+    <div className="">
+      <LogoBanner />
+      <div ref={sketchRef} />
+    </div>
+  );
 }

@@ -41,24 +41,31 @@ export class Goalkeeper {
     } else if (this.isReacting && this.reactionDelay <= 0 && ball.isKicking) {
       if (this.difficulty !== "easy") {
         // Predict ball's trajectory and move
-        const predictedX = ball.ballX;
-        if (predictedX < this.x - 10 * this.scaleX) {
-          this.targetX = this.p.constrain(
-            predictedX,
-            this.p.goalX + 20 * this.scaleX,
-            this.p.goalX + this.p.goalWidth - 20 * this.scaleX
-          );
-          this.diveDirection = -1; // Dive left
-        } else if (predictedX > this.x + 10 * this.scaleX) {
-          this.targetX = this.p.constrain(
-            predictedX,
-            this.p.goalX + 20 * this.scaleX,
-            this.p.goalX + this.p.goalWidth - 20 * this.scaleX
-          );
-          this.diveDirection = 1; // Dive right
-        } else {
-          this.diveDirection = 0; // Stay centered for straight shots
+        let predictedX = ball.ballX;
+        let predictedY = ball.ballY;
+        let tempSpeedX = ball.ballSpeedX;
+        let tempSpeedY = ball.ballSpeedY;
+        for (let t = 0; t < 30; t++) {
+          // Simulate 0.5s at 60fps
+          predictedX += tempSpeedX;
+          predictedY += tempSpeedY;
+          const velocity = this.p.createVector(tempSpeedX, tempSpeedY);
+          const magnusForce = velocity
+            .copy()
+            .rotate(this.p.HALF_PI)
+            .mult(ball.spin * 0.05);
+          tempSpeedX += magnusForce.x;
+          tempSpeedY += magnusForce.y;
+          tempSpeedX *= 0.98;
+          tempSpeedY *= 0.98;
         }
+        this.targetX = this.p.constrain(
+          predictedX,
+          this.p.goalX + 20 * this.scaleX,
+          this.p.goalX + this.p.goalWidth - 20 * this.scaleX
+        );
+        this.diveDirection =
+          predictedX < this.x ? -1 : predictedX > this.x ? 1 : 0;
       } else {
         // Easy mode: less accurate movement
         this.targetX = this.x + this.p.random(-20, 20) * this.scaleX;
@@ -67,14 +74,11 @@ export class Goalkeeper {
       }
     }
 
-    // Smoothly move toward targetX
-    if (Math.abs(this.x - this.targetX) > this.speed) {
-      this.x += this.speed * (this.targetX > this.x ? 1 : -1);
-      this.isMoving = true;
-    } else {
-      this.x = this.targetX;
-      this.isMoving = false;
-    }
+    // Smoothly move toward targetX with acceleration
+    const accel = 0.5 * this.speed;
+    const velX = (this.targetX - this.x) * 0.1; // Proportional control
+    this.x += this.p.constrain(velX, -this.speed, this.speed);
+    this.isMoving = Math.abs(velX) > 0.1;
 
     // Reset reaction after shot is resolved
     if (!ball.isKicking) {
@@ -95,11 +99,36 @@ export class Goalkeeper {
     }
 
     // Handle ball saving
-    const distanceToBall = this.p.dist(this.x, this.y, ball.ballX, ball.ballY);
-    if (ball.wasShotByPlayer && distanceToBall < 20 * this.scaleX) {
-      const angle = Math.atan2(ball.ballY - this.y, ball.ballX - this.x);
-      ball.ballSpeedX = Math.cos(angle) * 5;
-      ball.ballSpeedY = Math.sin(angle) * 5;
+    const keeperWidth = 20 * this.size;
+    const keeperHeight = 30 * this.size;
+    if (
+      ball.ballX > this.x - keeperWidth / 2 &&
+      ball.ballX < this.x + keeperWidth / 2 &&
+      ball.ballY > this.y - keeperHeight / 2 &&
+      ball.ballY < this.y + keeperHeight / 2 &&
+      ball.isKicking
+    ) {
+      // Calculate reflection vector
+      const collisionNormal = this.p
+        .createVector(ball.ballX - this.x, ball.ballY - this.y)
+        .normalize();
+      const dot =
+        ball.ballSpeedX * collisionNormal.x +
+        ball.ballSpeedY * collisionNormal.y;
+      const restitution = 0.7;
+      ball.ballSpeedX =
+        (ball.ballSpeedX - 2 * dot * collisionNormal.x) * restitution;
+      ball.ballSpeedY =
+        (ball.ballSpeedY - 2 * dot * collisionNormal.y) * restitution;
+      // Calculate spin with reduced magnitude
+      const relativeVelX = ball.ballSpeedX - (this.x - prevX);
+      const relativeVelY = ball.ballSpeedY;
+      ball.spin = this.p.constrain(
+        (relativeVelX * collisionNormal.y - relativeVelY * collisionNormal.x) *
+          0.02,
+        -0.5,
+        0.5
+      );
       ball.wasShotByPlayer = false;
     }
   }

@@ -37,14 +37,28 @@ export class Ball {
     const p = this.p;
 
     if (this.isKicking) {
+      // Apply Magnus effect
+      const velocity = this.p.createVector(this.ballSpeedX, this.ballSpeedY);
+      const magnusForce = velocity
+        .copy()
+        .rotate(this.p.HALF_PI)
+        .mult(this.spin * 0.05);
+      this.ballSpeedX += magnusForce.x;
+      this.ballSpeedY += magnusForce.y;
+
+      // Apply drag
+      const speed = this.p.dist(0, 0, this.ballSpeedX, this.ballSpeedY);
+      const drag = 0.0005 * speed * speed;
+      const dragForce = this.p
+        .createVector(this.ballSpeedX, this.ballSpeedY)
+        .normalize()
+        .mult(-drag);
+      this.ballSpeedX += dragForce.x;
+      this.ballSpeedY += dragForce.y;
+
+      // Update position
       this.ballX += this.ballSpeedX;
       this.ballY += this.ballSpeedY;
-
-      // Apply spin and friction
-      this.ballSpeedX += this.spin * 0.05;
-      this.ballSpeedY += this.spin * 0.05;
-      this.ballSpeedX *= 0.98;
-      this.ballSpeedY *= 0.98;
 
       // Stop the ball if it slows down too much
       if (Math.abs(this.ballSpeedX) < 0.1 && Math.abs(this.ballSpeedY) < 0.1) {
@@ -108,6 +122,7 @@ export class Ball {
       this.wasShotByPlayer = false;
     }
   }
+
   resetToPenalty(spotX, spotY) {
     this.ballX = spotX;
     this.ballY = spotY;
@@ -124,65 +139,78 @@ export class Ball {
     const goalWidth = this.p.goalWidth;
     const goalHeight = this.p.goalHeight;
     const ballRadius = 10 * this.scaleX;
+    const postRadius = 5 * this.scaleX;
 
+    const leftPostX = goalX + 8;
+    const rightPostX = goalX + goalWidth - 8;
     if (
-      this.ballX - ballRadius <= goalX + 8 &&
-      this.ballY >= goalY &&
-      this.ballY <= goalY + goalHeight
+      this.p.dist(this.ballX, this.ballY, leftPostX, goalY) <
+      ballRadius + postRadius
     ) {
-      this.ballSpeedX *= -1;
-      this.ballX = goalX + 8 + ballRadius;
-    }
-
-    if (
-      this.ballX + ballRadius >= goalX + goalWidth - 8 &&
-      this.ballY >= goalY &&
-      this.ballY <= goalY + goalHeight
+      // Reflect off left post
+      const normal = this.p
+        .createVector(this.ballX - leftPostX, this.ballY - goalY)
+        .normalize();
+      const dot = this.ballSpeedX * normal.x + this.ballSpeedY * normal.y;
+      this.ballSpeedX = (this.ballSpeedX - 2 * dot * normal.x) * 0.8;
+      this.ballSpeedY = (this.ballSpeedY - 2 * dot * normal.y) * 0.8;
+      // Calculate spin
+      const relativeVelX = this.ballSpeedX;
+      const relativeVelY = this.ballSpeedY;
+      this.spin = (relativeVelX * normal.y - relativeVelY * normal.x) * 0.1;
+      // Reposition to avoid penetration
+      const dist = this.p.dist(this.ballX, this.ballY, leftPostX, goalY);
+      this.ballX =
+        leftPostX +
+        ((this.ballX - leftPostX) * (ballRadius + postRadius)) / dist;
+      this.ballY =
+        goalY + ((this.ballY - goalY) * (ballRadius + postRadius)) / dist;
+    } else if (
+      this.p.dist(this.ballX, this.ballY, rightPostX, goalY) <
+      ballRadius + postRadius
     ) {
-      this.ballSpeedX *= -1;
-      this.ballX = goalX + goalWidth - 8 - ballRadius;
-    }
-
-    if (
+      // Reflect off right post
+      const normal = this.p
+        .createVector(this.ballX - rightPostX, this.ballY - goalY)
+        .normalize();
+      const dot = this.ballSpeedX * normal.x + this.ballSpeedY * normal.y;
+      this.ballSpeedX = (this.ballSpeedX - 2 * dot * normal.x) * 0.8;
+      this.ballSpeedY = (this.ballSpeedY - 2 * dot * normal.y) * 0.8;
+      // Calculate spin
+      const relativeVelX = this.ballSpeedX;
+      const relativeVelY = this.ballSpeedY;
+      this.spin = (relativeVelX * normal.y - relativeVelY * normal.x) * 0.1;
+      // Reposition to avoid penetration
+      const dist = this.p.dist(this.ballX, this.ballY, rightPostX, goalY);
+      this.ballX =
+        rightPostX +
+        ((this.ballX - rightPostX) * (ballRadius + postRadius)) / dist;
+      this.ballY =
+        goalY + ((this.ballY - goalY) * (ballRadius + postRadius)) / dist;
+    } else if (
       this.ballY - ballRadius <= goalY + 8 &&
       this.ballX >= goalX &&
       this.ballX <= goalX + goalWidth
     ) {
-      this.ballSpeedY *= -1;
+      this.ballSpeedY *= -0.8;
       this.ballY = goalY + 8 + ballRadius;
+      // Calculate spin
+      this.spin = this.ballSpeedX * 0.1;
     }
   }
 
-  //   checkGoal() {
-  //     // Use circle-rectangle collision detection so that the entire ball counts toward a goal
-  //     const goalX = this.p.goalX;
-  //     const goalY = this.p.goalY;
-  //     const goalWidth = this.p.goalWidth;
-  //     const goalHeight = this.p.goalHeight;
-  //     const ballRadius = 10 * this.scaleX;
-
-  //     // Find the closest point within the goal rectangle to the ball's center
-  //     const closestX = Math.max(goalX, Math.min(this.ballX, goalX + goalWidth));
-  //     const closestY = Math.max(goalY, Math.min(this.ballY, goalY + goalHeight));
-
-  //     const dx = this.ballX - closestX;
-  //     const dy = this.ballY - closestY;
-
-  //     return dx * dx + dy * dy <= ballRadius * ballRadius;
-  //   }
   checkGoal() {
     const goalX = this.p.goalX;
     const goalY = this.p.goalY;
     const goalWidth = this.p.goalWidth;
-    const goalHeight = this.p.goalHeight;
     const ballRadius = 10 * this.scaleX;
 
-    // Check if the entire ball is within goal boundaries
+    // Check if the ball crosses the goal line
     return (
-      this.ballX - ballRadius >= goalX &&
-      this.ballX + ballRadius <= goalX + goalWidth &&
-      this.ballY - ballRadius >= goalY &&
-      this.ballY + ballRadius <= goalY + goalHeight
+      this.ballX >= goalX &&
+      this.ballX <= goalX + goalWidth &&
+      this.ballY <= goalY + ballRadius &&
+      this.ballY >= goalY - ballRadius
     );
   }
 
@@ -206,7 +234,6 @@ export class Ball {
       p.push();
       p.translate(this.ballX + 30 * this.scaleX, this.ballY);
       p.rotate(p.radians(this.spin * 90));
-      p.stroke(0, 255, 0);
       p.strokeWeight(2);
       p.line(0, 0, 20 * this.scaleX * Math.abs(this.spin), 0);
       p.pop();

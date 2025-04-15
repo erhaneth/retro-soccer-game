@@ -9,7 +9,7 @@ export class Player {
     this.speed = 2 * scaleX;
     this.size = 3 * scaleX;
 
-    this.aimAngle = -90;
+    this.aimAngle = 0;
     this.isCharging = false;
     this.kickPower = 0;
     this.maxPower = 1;
@@ -113,6 +113,7 @@ export class Player {
     p.rect(startX + s * 5, startY + s * 15, s * 6, s * 3);
 
     p.fill(240, 190, 140);
+
     const legOffset = Math.sin(this.legFrame * Math.PI) * 2 * s;
     if (this.isMoving) {
       let legSwingDirection = 1;

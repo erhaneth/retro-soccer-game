@@ -14,41 +14,46 @@ export class Ball {
 
     // Ball properties
     this.ballX = p.width / 2;
-    this.ballY = 260;
+    this.ballY = 260; // Penalty spot position
     this.ballSpeedX = 0;
     this.ballSpeedY = 0;
     this.isKicking = false;
     this.spin = 0;
+    this.gravity = 0.001; // Reduced gravity for minimal vertical drop
+    this.friction = 0.98; // Ground friction
+    this.drag = 0.0002; // Slightly reduced air resistance
 
     // Aiming line properties
     this.playerX = playerX;
     this.playerY = playerY;
     this.aimAngle = aimAngle;
-    this.kickDistance = 36 * scaleX; // Same distance used for kicking
+    this.kickDistance = 36 * scaleX;
 
     // Reference to the goalkeeper for restart logic
     this.goalkeeper = goalkeeper;
-
-    // Flag to mark if the ball was shot directly by the player
     this.wasShotByPlayer = false;
+    this.visible = true; // Ensure ball is visible after reset
   }
 
   update() {
     const p = this.p;
 
     if (this.isKicking) {
-      // Apply Magnus effect
+      // Apply gravity (minimal effect)
+      this.ballSpeedY += this.gravity;
+
+      // Apply Magnus effect (unchanged)
       const velocity = this.p.createVector(this.ballSpeedX, this.ballSpeedY);
       const magnusForce = velocity
         .copy()
         .rotate(this.p.HALF_PI)
-        .mult(this.spin * 0.05);
+        .mult(this.spin * 0.02);
       this.ballSpeedX += magnusForce.x;
       this.ballSpeedY += magnusForce.y;
 
-      // Apply drag
+      // Apply air resistance
       const speed = this.p.dist(0, 0, this.ballSpeedX, this.ballSpeedY);
-      const drag = 0.0005 * speed * speed;
+      const drag = this.drag * speed * speed;
       const dragForce = this.p
         .createVector(this.ballSpeedX, this.ballSpeedY)
         .normalize()
@@ -60,9 +65,21 @@ export class Ball {
       this.ballX += this.ballSpeedX;
       this.ballY += this.ballSpeedY;
 
-      // Stop the ball if it slows down too much
-      if (Math.abs(this.ballSpeedX) < 0.1 && Math.abs(this.ballSpeedY) < 0.1) {
-        this.isKicking = false;
+      // Ground collision (only if ball is low and past goal)
+      if (
+        this.ballY > p.height - 20 &&
+        this.ballX > p.goalX &&
+        this.ballX < p.goalX + p.goalWidth
+      ) {
+        this.ballY = p.height - 20;
+        this.ballSpeedY *= -0.6; // Bounce with energy loss
+        this.ballSpeedX *= this.friction; // Apply ground friction
+      }
+
+      // Stop the ball if it's moving too slowly
+      if (speed < 0.3) {
+        this.stopBall();
+        return;
       }
 
       // Check collision with goalposts
@@ -75,46 +92,53 @@ export class Ball {
         this.ballY < 0 ||
         this.ballY > p.height
       ) {
-        this.resetBall();
+        this.stopBall();
+        return;
       }
     }
+  }
+
+  stopBall() {
+    this.isKicking = false;
+    this.ballSpeedX = 0;
+    this.ballSpeedY = 0;
+    this.spin = 0;
   }
 
   kick(power, angleDeg) {
     if (!this.isKicking) {
       this.isKicking = true;
-      // Mark the ball as shot directly by the player
       this.wasShotByPlayer = true;
       const rad = this.p.radians(angleDeg);
-      this.ballSpeedX = power * this.p.cos(rad) * this.scaleX;
-      this.ballSpeedY = power * this.p.sin(rad) * this.scaleY;
-      this.spin = (angleDeg % 90) * 0.02;
+
+      // Increase base speed and reduce vertical component for flat shots
+      const minPower = 1;
+      const effectivePower = Math.max(power * 7, minPower); // Increased from 5 to 7
+      const verticalScale = Math.abs(angleDeg) > 30 ? 1 : 0.3; // Reduce vertical for flat shots
+
+      this.ballSpeedX = effectivePower * this.p.cos(rad) * this.scaleX;
+      this.ballSpeedY =
+        effectivePower * this.p.sin(rad) * this.scaleY * verticalScale;
+      this.spin = (angleDeg % 90) * 0.01;
     }
   }
 
   resetBall() {
     const p = this.p;
     if (this.goalkeeper) {
-      // Position the ball near the goalkeeper with a small random offset
       this.ballX = this.goalkeeper.x + p.random(-10, 10);
       this.ballY = this.goalkeeper.y + p.random(-10, 10);
-
-      // Generate random kick parameters for restarting play
-      const randomAngle = p.random(30, 150); // degrees
-      const randomPower = p.random(3, 7); // power/speed magnitude
+      const randomAngle = p.random(30, 150);
+      const randomPower = p.random(3, 7);
       const rad = p.radians(randomAngle);
-
       this.ballSpeedX = randomPower * p.cos(rad) * this.scaleX;
       this.ballSpeedY = randomPower * p.sin(rad) * this.scaleY;
       this.isKicking = true;
       this.spin = p.random(-1, 1);
-
-      // Reset the player-shot flag for the new serve
       this.wasShotByPlayer = false;
     } else {
-      // Fallback reset (centered)
       this.ballX = p.width / 2;
-      this.ballY = 130;
+      this.ballY = 260;
       this.ballSpeedX = 0;
       this.ballSpeedY = 0;
       this.isKicking = false;
@@ -130,7 +154,7 @@ export class Ball {
     this.ballSpeedY = 0;
     this.isKicking = false;
     this.spin = 0;
-    this.wasShotByPlayer = false;
+    this.visible = true;
   }
 
   checkGoalpostCollision() {
@@ -147,18 +171,15 @@ export class Ball {
       this.p.dist(this.ballX, this.ballY, leftPostX, goalY) <
       ballRadius + postRadius
     ) {
-      // Reflect off left post
       const normal = this.p
         .createVector(this.ballX - leftPostX, this.ballY - goalY)
         .normalize();
       const dot = this.ballSpeedX * normal.x + this.ballSpeedY * normal.y;
       this.ballSpeedX = (this.ballSpeedX - 2 * dot * normal.x) * 0.8;
       this.ballSpeedY = (this.ballSpeedY - 2 * dot * normal.y) * 0.8;
-      // Calculate spin
       const relativeVelX = this.ballSpeedX;
       const relativeVelY = this.ballSpeedY;
       this.spin = (relativeVelX * normal.y - relativeVelY * normal.x) * 0.1;
-      // Reposition to avoid penetration
       const dist = this.p.dist(this.ballX, this.ballY, leftPostX, goalY);
       this.ballX =
         leftPostX +
@@ -169,18 +190,15 @@ export class Ball {
       this.p.dist(this.ballX, this.ballY, rightPostX, goalY) <
       ballRadius + postRadius
     ) {
-      // Reflect off right post
       const normal = this.p
         .createVector(this.ballX - rightPostX, this.ballY - goalY)
         .normalize();
       const dot = this.ballSpeedX * normal.x + this.ballSpeedY * normal.y;
       this.ballSpeedX = (this.ballSpeedX - 2 * dot * normal.x) * 0.8;
       this.ballSpeedY = (this.ballSpeedY - 2 * dot * normal.y) * 0.8;
-      // Calculate spin
       const relativeVelX = this.ballSpeedX;
       const relativeVelY = this.ballSpeedY;
       this.spin = (relativeVelX * normal.y - relativeVelY * normal.x) * 0.1;
-      // Reposition to avoid penetration
       const dist = this.p.dist(this.ballX, this.ballY, rightPostX, goalY);
       this.ballX =
         rightPostX +
@@ -194,7 +212,6 @@ export class Ball {
     ) {
       this.ballSpeedY *= -0.8;
       this.ballY = goalY + 8 + ballRadius;
-      // Calculate spin
       this.spin = this.ballSpeedX * 0.1;
     }
   }
@@ -203,15 +220,21 @@ export class Ball {
     const goalX = this.p.goalX;
     const goalY = this.p.goalY;
     const goalWidth = this.p.goalWidth;
+    const goalHeight = this.p.goalHeight;
     const ballRadius = 10 * this.scaleX;
 
-    // Check if the ball crosses the goal line
-    return (
+    const isGoal =
       this.ballX >= goalX &&
       this.ballX <= goalX + goalWidth &&
-      this.ballY <= goalY + ballRadius &&
-      this.ballY >= goalY - ballRadius
-    );
+      this.ballY <= goalY + goalHeight &&
+      this.ballY >= goalY - ballRadius &&
+      this.wasShotByPlayer;
+
+    if (isGoal) {
+      this.stopBall();
+    }
+
+    return isGoal;
   }
 
   draw() {
@@ -248,11 +271,35 @@ export class Ball {
     );
     if (distanceToPlayer < this.kickDistance && !this.isKicking) {
       p.push();
-      p.translate(this.ballX + 30 * this.scaleX, this.ballY);
+      p.translate(this.ballX, this.ballY);
       p.rotate(p.radians(this.aimAngle));
-      p.stroke(255, 0, 0);
-      p.strokeWeight(2);
-      p.line(0, 0, 50 * this.scaleX, 0);
+
+      const lineLength = 50 * this.scaleX;
+      for (let i = 0; i < lineLength; i++) {
+        const alpha = p.map(i, 0, lineLength, 255, 50);
+        p.stroke(255, 0, 0, alpha);
+        p.strokeWeight(2);
+        p.line(i, -1, i, 1);
+      }
+
+      const pulse = p.sin(p.frameCount * 0.1) * 0.5 + 1.5;
+      p.noStroke();
+      for (let i = 0; i < 5; i++) {
+        const dotX = 10 * i * this.scaleX;
+        const dotSize = 3 * this.scaleX * pulse;
+        p.fill(255, 0, 0, 150);
+        p.circle(dotX, 0, dotSize);
+      }
+
+      const power = this.p.kickPower || 0;
+      const powerBarLength = 50 * this.scaleX * power;
+      for (let i = 0; i < powerBarLength; i++) {
+        const alpha = p.map(i, 0, powerBarLength, 200, 50);
+        p.stroke(255, 0, 0, alpha);
+        p.strokeWeight(4);
+        p.line(i, -5 * this.scaleX, i, 5 * this.scaleX);
+      }
+
       p.pop();
     }
   }

@@ -15,6 +15,7 @@ const sketch = (s) => {
   let gameOver = false;
   let goalMessageTimer = 0;
   let netColorChangeTimer = 0;
+  let missMessageTimer = 0;
   let difficulty = "medium";
   let adImage; // Store the advertisement image
 
@@ -64,7 +65,7 @@ const sketch = (s) => {
   s.draw = () => {
     if (!gameOver) {
       drawBackground(s);
-      drawAds(s); // Draw ads before field and goal
+      drawAds(s);
       drawField(s);
       drawPenaltyArea(s);
       drawGoal(s, netColorChangeTimer);
@@ -83,15 +84,40 @@ const sketch = (s) => {
         ball.update();
         ball.draw(player.x, player.y);
 
+        // Check for goal
         if (ball.checkGoal()) {
           score += 1;
           shotsTaken += 1;
           goalMessageTimer = 60;
           netColorChangeTimer = 60;
-          ball.resetToPenalty(s.width / 2, penaltyMarkY);
-          player.x = s.width / 2;
-          player.y = penaltyMarkY + 50;
           console.log("Crowd cheers: 'GOOOAL!'");
+        }
+
+        // Check for miss (ball stops or goes out of bounds)
+        if (ball.isKicking) {
+          if (
+            ball.ballX < 0 ||
+            ball.ballX > s.width ||
+            ball.ballY < 0 ||
+            ball.ballY > s.height ||
+            (Math.abs(ball.ballSpeedX) < 0.3 &&
+              Math.abs(ball.ballSpeedY) < 0.3 &&
+              ball.ballY >= s.height - 20)
+          ) {
+            shotsTaken += 1;
+            missMessageTimer = 60;
+            console.log("Crowd groans: 'Missed!'");
+          }
+        }
+
+        // Reset ball to penalty spot after each shot
+        if (!ball.isKicking && ball.wasShotByPlayer) {
+          const penaltySpotX = s.width / 2;
+          const penaltySpotY = penaltyMarkY;
+          ball.resetToPenalty(penaltySpotX, penaltySpotY);
+          player.x = penaltySpotX;
+          player.y = penaltySpotY + 50;
+          ball.wasShotByPlayer = false; // Reset the flag
         }
       }
 
@@ -99,7 +125,29 @@ const sketch = (s) => {
         gameOver = true;
       }
 
+      // Draw UI elements
       drawUI(s);
+
+      // Draw messages on top of everything
+      if (goalMessageTimer > 0) {
+        s.push();
+        s.fill(255, 215, 0);
+        s.textSize(64);
+        s.textAlign(s.CENTER, s.CENTER);
+        s.text("GOOOAL!", s.width / 2, s.height / 2);
+        s.pop();
+        goalMessageTimer -= 1;
+      }
+
+      if (missMessageTimer > 0) {
+        s.push();
+        s.fill(255, 0, 0);
+        s.textSize(64);
+        s.textAlign(s.CENTER, s.CENTER);
+        s.text("MISSED!", s.width / 2, s.height / 2);
+        s.pop();
+        missMessageTimer -= 1;
+      }
     } else {
       s.background(0);
       s.fill(255);
@@ -295,14 +343,6 @@ const sketch = (s) => {
       s.fill(255, 0, 0);
       s.rect(10, 90, player.kickPower * 100, 10);
     }
-
-    if (goalMessageTimer > 0) {
-      s.fill(255, 215, 0);
-      s.textSize(32);
-      s.textAlign(s.CENTER, s.CENTER);
-      s.text("Goal!", s.width / 2, s.height / 2);
-      goalMessageTimer -= 1;
-    }
   }
 };
 
@@ -322,7 +362,7 @@ export default function GameField() {
 
   return (
     <div className="">
-      <LogoBanner />
+      {/* <LogoBanner /> */}
       <div ref={sketchRef} />
     </div>
   );

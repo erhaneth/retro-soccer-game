@@ -21,6 +21,9 @@ export class Player {
     this.frameSpeed = 0.1;
     this.moveDirection = { x: 0, y: 0 };
     this.onShotCallback = onShotCallback;
+
+    // Improved aiming angle control
+    this.aimSpeed = 2; // Base speed for aiming
   }
 
   update(ball, goalkeeper) {
@@ -49,11 +52,22 @@ export class Player {
       this.legFrame = 0;
     }
 
+    // Improved aiming angle control
+    const aimAcceleration = 0.1; // How quickly the aiming speed increases
+    const maxAimSpeed = 5; // Maximum aiming speed
+
     if (p.keyIsDown(p.LEFT_ARROW)) {
-      this.aimAngle -= 1;
+      this.aimSpeed = p.min(this.aimSpeed + aimAcceleration, maxAimSpeed);
+      this.aimAngle -= this.aimSpeed;
     } else if (p.keyIsDown(p.RIGHT_ARROW)) {
-      this.aimAngle += 1;
+      this.aimSpeed = p.min(this.aimSpeed + aimAcceleration, maxAimSpeed);
+      this.aimAngle += this.aimSpeed;
+    } else {
+      this.aimSpeed = 2; // Reset to base speed when not pressing
     }
+
+    // Keep angle between -90 and 90 degrees
+    this.aimAngle = p.constrain(this.aimAngle, -180, 0);
 
     if (p.keyIsDown(32)) {
       this.isCharging = true;

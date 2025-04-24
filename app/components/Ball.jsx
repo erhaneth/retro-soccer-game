@@ -42,19 +42,22 @@ export class Ball {
       // Apply gravity (minimal effect)
       this.ballSpeedY += this.gravity;
 
-      // Apply Magnus effect (unchanged)
-      const velocity = this.p.createVector(this.ballSpeedX, this.ballSpeedY);
-      const magnusForce = velocity
-        .copy()
-        .rotate(this.p.HALF_PI)
-        .mult(this.spin * 0.02);
-      this.ballSpeedX += magnusForce.x;
-      this.ballSpeedY += magnusForce.y;
+      // Apply Magnus effect only if ball has significant speed
+      const speed = p.dist(0, 0, this.ballSpeedX, this.ballSpeedY);
+      if (speed > 0.5) {
+        // Only apply spin effect if ball is moving fast enough
+        const velocity = p.createVector(this.ballSpeedX, this.ballSpeedY);
+        const magnusForce = velocity
+          .copy()
+          .rotate(p.HALF_PI)
+          .mult(this.spin * 0.02);
+        this.ballSpeedX += magnusForce.x;
+        this.ballSpeedY += magnusForce.y;
+      }
 
       // Apply air resistance
-      const speed = this.p.dist(0, 0, this.ballSpeedX, this.ballSpeedY);
       const drag = this.drag * speed * speed;
-      const dragForce = this.p
+      const dragForce = p
         .createVector(this.ballSpeedX, this.ballSpeedY)
         .normalize()
         .mult(-drag);
@@ -119,7 +122,11 @@ export class Ball {
       this.ballSpeedX = effectivePower * this.p.cos(rad) * this.scaleX;
       this.ballSpeedY =
         effectivePower * this.p.sin(rad) * this.scaleY * verticalScale;
-      this.spin = (angleDeg % 90) * 0.01;
+
+      // Make spin proportional to both power and angle
+      // At low power, spin should be minimal
+      const spinFactor = Math.max(0.1, power); // Minimum spin factor of 0.1
+      this.spin = (angleDeg % 90) * 0.01 * spinFactor;
     }
   }
 

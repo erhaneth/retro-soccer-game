@@ -1,8 +1,9 @@
 export class Player {
-  constructor(p, scaleX, scaleY, onShotCallback) {
+  constructor(p, scaleX, scaleY, onShotCallback, playerNumber = 1) {
     this.p = p;
     this.scaleX = scaleX;
     this.scaleY = scaleY;
+    this.playerNumber = playerNumber;
 
     this.x = 260 * scaleX;
     this.y = 300 * scaleY;
@@ -116,7 +117,12 @@ export class Player {
     p.fill(200, 0, 0);
     p.rect(startX + s * 8, startY + s * 9, s, s);
 
-    p.fill(200, 0, 0);
+    // Use different colors for each player
+    if (this.playerNumber === 1) {
+      p.fill(200, 0, 0); // Red for Player 1
+    } else {
+      p.fill(0, 0, 200); // Blue for Player 2
+    }
     p.rect(startX + s * 4, startY + s * 10, s * 8, s * 5);
 
     p.fill(240, 190, 140);

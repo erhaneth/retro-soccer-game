@@ -1,9 +1,10 @@
 export class Goalkeeper {
-  constructor(p, scaleX, scaleY, difficulty) {
+  constructor(p, scaleX, scaleY, difficulty, playerNumber = 1) {
     this.p = p;
     this.scaleX = scaleX;
     this.scaleY = scaleY;
     this.difficulty = difficulty;
+    this.playerNumber = playerNumber;
 
     this.x = p.width / 2; // Start at goal center
     this.y = 50 * scaleY;
@@ -22,6 +23,17 @@ export class Goalkeeper {
 
   update(ball) {
     const prevX = this.x;
+
+    // Only update position if not in two-player mode
+    if (!this.p.isTwoPlayerMode) {
+      // Existing AI behavior
+      const targetX = this.p.lerp(this.x, ball.ballX, this.reactionSpeed);
+      this.x = this.p.constrain(
+        targetX,
+        this.p.goalX + this.width / 2,
+        this.p.goalX + this.p.goalWidth - this.width / 2
+      );
+    }
 
     // Stay centered unless reacting to a shot
     if (!this.isReacting && !ball.isKicking) {
@@ -157,7 +169,12 @@ export class Goalkeeper {
       p.rect(-4 * s, -10 * s, s * 0.5, s * 0.5);
       p.rect(-2 * s, -10 * s, s * 0.5, s * 0.5);
 
-      p.fill(0, 0, 200); // Body (stretched for dive)
+      // Use different colors for each player's jersey
+      if (this.playerNumber === 1) {
+        p.fill(200, 0, 0); // Red for Player 1
+      } else {
+        p.fill(0, 0, 200); // Blue for Player 2
+      }
       p.rect(-10 * s, -9 * s, s * 12, s * 6);
       p.fill(240, 190, 140); // Arms
       p.rect(-12 * s, -9 * s, s * 3, s * 8); // Extended arm
@@ -186,7 +203,12 @@ export class Goalkeeper {
       p.fill(0); // Mouth
       p.rect(startX + s * 7, startY + s * 9, s * 3, s);
 
-      p.fill(0, 0, 200); // Body
+      // Use different colors for each player's jersey
+      if (this.playerNumber === 1) {
+        p.fill(200, 0, 0); // Red for Player 1
+      } else {
+        p.fill(0, 0, 200); // Blue for Player 2
+      }
       p.rect(startX + s * 4, startY + s * 10, s * 8, s * 5);
       p.fill(240, 190, 140); // Arms
       p.rect(startX + s * 2, startY + s * 10, s * 3, s * 3);

@@ -5,73 +5,160 @@ import { Player } from "./Player";
 import { Goalkeeper } from "./Goalkeeper";
 import { Ball } from "./Ball";
 import LogoBanner from "./LogoBanner";
+import { GoalkeeperControls } from "./GoalkeeperControls";
+
 const sketch = (s) => {
   let player;
   let goalkeeper;
   let ball;
+  let goalkeeperControls;
   let score = 0;
   let shotsTaken = 0;
-  const maxShots = 10;
+  let playerOneScore = 0; // Track Player 1's score
+  let playerTwoScore = 0; // Track Player 2's score
+  let playerOneShots = 0; // Track Player 1's shots
+  let playerTwoShots = 0; // Track Player 2's shots
+  const maxShots = 5;
   let gameOver = false;
   let goalMessageTimer = 0;
   let netColorChangeTimer = 0;
   let missMessageTimer = 0;
-  let difficulty = "medium";
-  let adImage; // Store the advertisement image
+  let difficulty = "hard";
+  let adImage;
+  let isTwoPlayerMode = true;
+  let isPlayerOneKicker = true; // Track which player is the kicker
 
-  // Scaling factor
   const pixelsPerYard = 13.33;
-
-  // Field dimensions
   const fieldWidth = 60 * pixelsPerYard;
   const fieldHeight = 50 * pixelsPerYard;
-
-  // Goal dimensions
-  const goalWidth = 8 * pixelsPerYard * 2.6; // ~106.64 pixels
-  const goalHeight = 2.67 * pixelsPerYard * 1.8; // ~35.59 pixels
-
-  // Penalty area
+  const goalWidth = 8 * pixelsPerYard * 2.6;
+  const goalHeight = 2.67 * pixelsPerYard * 1.8;
   const penaltyAreaWidth = 50 * pixelsPerYard;
   const penaltyAreaHeight = 25 * pixelsPerYard;
-
-  // Penalty mark
   const penaltyMarkY = 20 * pixelsPerYard;
-
-  // Goal area
   const goalAreaWidth = 20 * pixelsPerYard;
   const goalAreaHeight = 6 * pixelsPerYard;
-
-  // Center circle
-  const centerCircleRadius = 5 * pixelsPerYard;
+  const centerCircleRadius = 6 * pixelsPerYard;
+  const topOffset = 40;
 
   s.preload = () => {
-    // Load the advertisement image
     adImage = s.loadImage("/icon-192x192.png");
   };
 
   s.setup = () => {
-    s.createCanvas(800, 800);
+    let canvas = s.createCanvas(800, 800);
+    canvas.style("background-color", "transparent");
     s.noSmooth();
     s.pixelDensity(1);
 
-    player = new Player(s, 1, 1, () => {
-      shotsTaken += 1;
-    });
+    drawBackground(s);
+    drawField(s);
+    drawPenaltyArea(s);
+    drawGoal(s, 0);
+    drawAds(s);
 
-    goalkeeper = new Goalkeeper(s, 1, 1, difficulty);
+    initializeRoles();
+  };
+
+  function initializeRoles() {
+    // Initialize player and goalkeeper based on current roles
+    player = new Player(
+      s,
+      1,
+      1,
+      () => {
+        if (isPlayerOneKicker) {
+          playerOneShots += 1;
+        } else {
+          playerTwoShots += 1;
+        }
+      },
+      isPlayerOneKicker ? 1 : 2
+    );
+
+    goalkeeper = new Goalkeeper(s, 1, 1, difficulty, isPlayerOneKicker ? 2 : 1);
     ball = new Ball(s, 1, 1, player.x, player.y, player.aimAngle, goalkeeper);
+
+    if (isTwoPlayerMode) {
+      goalkeeperControls = new GoalkeeperControls(s);
+    }
+
+    // Reset ball to penalty spot
+    const penaltySpotX = s.width / 2;
+    const penaltySpotY = penaltyMarkY;
+    ball.resetToPenalty(penaltySpotX, penaltySpotY);
+    player.x = penaltySpotX;
+    player.y = penaltySpotY + 50;
+  }
+
+  function swapRoles() {
+    isPlayerOneKicker = !isPlayerOneKicker;
+    // Reset shots for the new kicker
+    shotsTaken = 0;
+    // Reinitialize players with swapped roles
+    initializeRoles();
+  }
+
+  s.keyPressed = () => {
+    if (isTwoPlayerMode) {
+      if (
+        s.keyCode === 74 ||
+        s.keyCode === 76 ||
+        s.keyCode === 73 ||
+        s.keyCode === 75
+      ) {
+        goalkeeperControls.handleKeyPress(s.keyCode);
+        return;
+      }
+
+      if (s.keyCode === 32) {
+        if (player && !player.isCharging) {
+          player.isCharging = true;
+          player.kickPower = 0;
+        }
+      }
+    }
+  };
+
+  s.keyReleased = () => {
+    if (isTwoPlayerMode) {
+      if (
+        s.keyCode === 74 ||
+        s.keyCode === 76 ||
+        s.keyCode === 73 ||
+        s.keyCode === 75
+      ) {
+        goalkeeperControls.handleKeyRelease(s.keyCode);
+        return;
+      }
+
+      if (s.keyCode === 32) {
+        if (player && player.isCharging) {
+          player.isCharging = false;
+          if (ball) {
+            ball.kick(player.kickPower, player.aimAngle);
+          }
+        }
+      }
+    }
   };
 
   s.draw = () => {
     if (!gameOver) {
+      s.clear();
+
       drawBackground(s);
-      drawAds(s);
       drawField(s);
       drawPenaltyArea(s);
       drawGoal(s, netColorChangeTimer);
+      drawAds(s);
 
       if (goalkeeper) {
-        goalkeeper.update(ball);
+        if (isTwoPlayerMode) {
+          goalkeeperControls.update(goalkeeper, ball);
+        } else {
+          goalkeeper.update(ball);
+        }
         goalkeeper.draw();
       }
 
@@ -84,16 +171,18 @@ const sketch = (s) => {
         ball.update();
         ball.draw(player.x, player.y);
 
-        // Check for goal
         if (ball.checkGoal()) {
-          score += 1;
+          if (isPlayerOneKicker) {
+            playerOneScore += 1;
+          } else {
+            playerTwoScore += 1;
+          }
           shotsTaken += 1;
           goalMessageTimer = 60;
           netColorChangeTimer = 60;
           console.log("Crowd cheers: 'GOOOAL!'");
         }
 
-        // Check for miss (ball stops or goes out of bounds)
         if (ball.isKicking) {
           if (
             ball.ballX < 0 ||
@@ -110,25 +199,29 @@ const sketch = (s) => {
           }
         }
 
-        // Reset ball to penalty spot after each shot
         if (!ball.isKicking && ball.wasShotByPlayer) {
           const penaltySpotX = s.width / 2;
           const penaltySpotY = penaltyMarkY;
           ball.resetToPenalty(penaltySpotX, penaltySpotY);
           player.x = penaltySpotX;
           player.y = penaltySpotY + 50;
-          ball.wasShotByPlayer = false; // Reset the flag
+          ball.wasShotByPlayer = false;
         }
       }
 
+      // Check for role swap after 5 shots
       if (shotsTaken >= maxShots) {
-        gameOver = true;
+        if (isPlayerOneKicker) {
+          playerOneShots = maxShots;
+          swapRoles();
+        } else {
+          playerTwoShots = maxShots;
+          gameOver = true;
+        }
       }
 
-      // Draw UI elements
       drawUI(s);
 
-      // Draw messages on top of everything
       if (goalMessageTimer > 0) {
         s.push();
         s.fill(255, 215, 0);
@@ -153,47 +246,52 @@ const sketch = (s) => {
       s.fill(255);
       s.textSize(32);
       s.textAlign(s.CENTER, s.CENTER);
-      s.text("Game Over!", s.width / 2, s.height / 2 - 20);
-      s.text(`Final Score: ${score}`, s.width / 2, s.height / 2 + 20);
+      s.text("Game Over!", s.width / 2, s.height / 2 - 40);
+      s.text(`Player 1 Score: ${playerOneScore}`, s.width / 2, s.height / 2);
+      s.text(
+        `Player 2 Score: ${playerTwoScore}`,
+        s.width / 2,
+        s.height / 2 + 40
+      );
     }
   };
 
   function drawBackground(s) {
-    s.background(50, 50, 100); // Stadium atmosphere
-    s.fill(100, 100, 100);
-    s.rect(0, 0, s.width, 50); // Crowd area
-    for (let x = 0; x < s.width; x += 10) {
-      s.fill(s.random(100, 255), s.random(100, 255), s.random(100, 255));
-      s.circle(x, s.random(10, 40), 5); // Crowd effect
+    s.clear();
+    const stripeHeight = 20;
+    for (let y = topOffset; y < s.height; y += stripeHeight * 2) {
+      s.fill("#0aa116");
+      s.noStroke();
+      s.rect(0, y, s.width, stripeHeight);
+      s.fill("#0ca618");
+      s.rect(0, y + stripeHeight, s.width, stripeHeight);
     }
   }
 
   function drawAds(s) {
     if (adImage) {
-      const adWidth = goalWidth * 1.5; // Slightly wider than goal (~160 pixels)
-      const adHeight = adWidth * (192 / 192); // Maintain aspect ratio (~160 pixels)
-      const adX = s.width / 2 - adWidth / 2; // Center behind goal
-      const adY = 0; // At ground level, behind goal posts
+      const adWidth = 80; // Reduced ad size to make space
+      const adHeight = 32;
+      const numAds = 8;
+      const spacing = 1;
+      const totalWidth = adWidth * numAds + spacing * (numAds - 1);
+      const startX = (s.width - totalWidth) / 2;
+      const adY = 5;
 
-      // Draw a background board for the ad
-      s.fill(255, 255, 255, 200); // White board with slight transparency
+      s.fill(255);
       s.noStroke();
-      s.rect(adX - 5, adY - 5, adWidth + 10, adHeight + 10); // Slight padding
+      s.rect(0, adY, s.width, adHeight);
 
-      // Draw the ad image
-      s.image(adImage, adX, adY, adWidth, adHeight);
-
-      // Optional: Add a border to mimic a billboard
-      s.noFill();
-      s.stroke(0, 100);
-      s.strokeWeight(2);
-      s.rect(adX - 5, adY - 5, adWidth + 10, adHeight + 10);
+      for (let i = 0; i < numAds; i++) {
+        const adX = startX + i * (adWidth + spacing);
+        s.image(adImage, adX, adY, adWidth, adHeight);
+      }
     }
   }
 
   function drawField(s) {
     const stripeHeight = 20;
-    for (let y = 0; y < s.height; y += stripeHeight * 2) {
+    for (let y = topOffset; y < s.height; y += stripeHeight * 2) {
       s.fill("#0aa116");
       s.noStroke();
       s.rect(0, y, s.width, stripeHeight);
@@ -204,9 +302,6 @@ const sketch = (s) => {
     s.fill(255);
     s.noStroke();
     s.rect(0, 0, s.width, 4);
-
-    s.fill(255);
-    s.noStroke();
     s.rect(0, s.height - 4, s.width, 4);
 
     s.noFill();
@@ -268,7 +363,7 @@ const sketch = (s) => {
     s.rect(goalX, goalY, 8, goalHeight);
     s.rect(goalX + goalWidth - 8, goalY, 8, goalHeight);
 
-    const netTopY = goalY + 8;
+    const netTopY = goalY + 2;
     const netBottomY = goalY + goalHeight;
     const inset = 20;
 
@@ -312,22 +407,43 @@ const sketch = (s) => {
   }
 
   function drawUI(s) {
+    // Display shots info near the ads at the top
+    const uiStartY = 50; // Position below ads
     s.fill(255);
     s.textSize(16);
     s.textAlign(s.LEFT, s.TOP);
-    s.text(`Score: ${score}`, 10, 10);
-    s.text(`Shots: ${shotsTaken}/${maxShots}`, 10, 30);
-    s.text(`Aim Angle: ${Math.round(player.aimAngle)}°`, 10, 50);
-    s.text(`Power: ${Math.round(player.kickPower * 100)}%`, 10, 70);
+
+    // Show current roles
+    // s.text(
+    //   `Player ${isPlayerOneKicker ? 1 : 2} (Kicker) vs Player ${
+    //     isPlayerOneKicker ? 2 : 1
+    //   } (Goalkeeper)`,
+    //   10,
+    //   uiStartY
+    // );
+
+    s.text(
+      `Player ${isPlayerOneKicker ? 1 : 2} Score: ${
+        isPlayerOneKicker ? playerOneScore : playerTwoScore
+      }`,
+      10,
+      uiStartY + 20
+    );
+    s.text(`Shots: ${shotsTaken}/${maxShots}`, 10, uiStartY + 40);
+    s.text(`Aim Angle: ${Math.round(player.aimAngle)}°`, 10, s.height - 60);
+    s.text(`Power: ${Math.round(player.kickPower * 100)}%`, 10, s.height - 40);
 
     const miniMapWidth = 100;
     const miniMapHeight = 100;
     const miniMapX = s.width - miniMapWidth - 10;
-    const miniMapY = 10;
+    const miniMapY = s.height - miniMapHeight - 10;
+
     s.fill(0, 100, 0, 200);
     s.rect(miniMapX, miniMapY, miniMapWidth, miniMapHeight);
+
     const scaleX = miniMapWidth / s.width;
     const scaleY = miniMapHeight / s.height;
+
     s.fill(255, 0, 0);
     s.circle(miniMapX + player.x * scaleX, miniMapY + player.y * scaleY, 5);
     s.fill(0, 0, 255);
@@ -341,7 +457,7 @@ const sketch = (s) => {
 
     if (player.isCharging) {
       s.fill(255, 0, 0);
-      s.rect(10, 90, player.kickPower * 100, 10);
+      s.rect(10, s.height - 20, player.kickPower * 100, 10);
     }
   }
 };
@@ -361,9 +477,13 @@ export default function GameField() {
   }, []);
 
   return (
-    <div className="">
-      {/* <LogoBanner /> */}
-      <div ref={sketchRef} />
+    <div className="relative">
+      <div className="absolute top-10 left-0 w-full h-20 z-10"></div>
+      <div
+        ref={sketchRef}
+        className="relative z-20"
+        style={{ backgroundColor: "transparent" }}
+      />
     </div>
   );
 }

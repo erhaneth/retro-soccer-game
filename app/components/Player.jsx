@@ -98,42 +98,38 @@ export class Player {
 
     // --- Draw Player Sprite ---
     p.noStroke();
-    p.fill(80, 50, 20);
+    p.fill(50, 50, 50); // Head
     p.rect(startX + s * 5, startY, s * 6, s * 3);
     p.rect(startX + s * 4, startY + s * 3, s * 8, s * 2);
 
-    p.fill(240, 190, 140);
+    p.fill(240, 190, 140); // Face
     p.rect(startX + s * 5, startY + s * 5, s * 6, s * 5);
-
-    p.fill(255);
+    p.fill(255); // Eyes
     p.rect(startX + s * 6, startY + s * 6, s * 2, s * 2);
     p.rect(startX + s * 9, startY + s * 6, s * 2, s * 2);
     p.fill(0);
     p.rect(startX + s * 7, startY + s * 7, s, s);
     p.rect(startX + s * 10, startY + s * 7, s, s);
 
-    p.fill(255);
+    p.fill(0); // Mouth
     p.rect(startX + s * 7, startY + s * 9, s * 3, s);
-    p.fill(200, 0, 0);
-    p.rect(startX + s * 8, startY + s * 9, s, s);
 
-    // Use different colors for each player
+    // Use different colors for each player's jersey
     if (this.playerNumber === 1) {
       p.fill(200, 0, 0); // Red for Player 1
     } else {
       p.fill(0, 0, 200); // Blue for Player 2
     }
     p.rect(startX + s * 4, startY + s * 10, s * 8, s * 5);
-
-    p.fill(240, 190, 140);
+    p.fill(240, 190, 140); // Arms
     p.rect(startX + s * 2, startY + s * 10, s * 3, s * 3);
     p.rect(startX + s * 11, startY + s * 10, s * 3, s * 3);
 
-    p.fill(0);
+    p.fill(0); // Shorts
     p.rect(startX + s * 5, startY + s * 15, s * 6, s * 3);
 
+    // Draw legs with animation if moving
     p.fill(240, 190, 140);
-
     const legOffset = Math.sin(this.legFrame * Math.PI) * 2 * s;
     if (this.isMoving) {
       let legSwingDirection = 1;
@@ -147,7 +143,7 @@ export class Player {
       p.translate(startX + s * 5, startY + s * 18);
       p.rotate(p.radians(legOffset * 10 * legSwingDirection));
       p.rect(0, 0, s * 2, s * 4);
-      p.fill(255);
+      p.fill(255); // Shoes
       p.rect(0, s * 4, s * 2, s * 2);
       p.fill(0);
       p.rect(0, s * 6, s * 2.5, s * 2);

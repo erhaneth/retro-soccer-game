@@ -50,7 +50,7 @@ export class Goalkeeper {
     // Handle reaction after delay
     if (this.isReacting && this.reactionDelay > 0) {
       this.reactionDelay -= 1;
-    } else if (this.isReacting && this.reactionDelay <= 0 && ball.isKicking) {
+
       if (this.difficulty !== "easy") {
         // Predict ball's trajectory and move
         let predictedX = ball.ballX;
@@ -110,38 +110,65 @@ export class Goalkeeper {
       this.legFrame = 0;
     }
 
-    // Handle ball saving
-    const keeperWidth = 20 * this.size;
-    const keeperHeight = 30 * this.size;
-    if (
-      ball.ballX > this.x - keeperWidth / 2 &&
-      ball.ballX < this.x + keeperWidth / 2 &&
-      ball.ballY > this.y - keeperHeight / 2 &&
-      ball.ballY < this.y + keeperHeight / 2 &&
-      ball.isKicking
-    ) {
-      // Calculate reflection vector
-      const collisionNormal = this.p
-        .createVector(ball.ballX - this.x, ball.ballY - this.y)
-        .normalize();
-      const dot =
-        ball.ballSpeedX * collisionNormal.x +
-        ball.ballSpeedY * collisionNormal.y;
-      const restitution = 0.7;
-      ball.ballSpeedX =
-        (ball.ballSpeedX - 2 * dot * collisionNormal.x) * restitution;
-      ball.ballSpeedY =
-        (ball.ballSpeedY - 2 * dot * collisionNormal.y) * restitution;
-      // Calculate spin with reduced magnitude
-      const relativeVelX = ball.ballSpeedX - (this.x - prevX);
-      const relativeVelY = ball.ballSpeedY;
-      ball.spin = this.p.constrain(
-        (relativeVelX * collisionNormal.y - relativeVelY * collisionNormal.x) *
-          0.02,
-        -0.5,
-        0.5
-      );
-      ball.wasShotByPlayer = false;
+    // Improved ball saving logic
+    if (ball.isKicking) {
+      // Calculate the goalkeeper's collision area based on dive state
+      const keeperWidth = this.isReacting ? 40 * this.size : 20 * this.size;
+      const keeperHeight = this.isReacting ? 40 * this.size : 30 * this.size;
+
+      // Calculate hand reach based on dive direction
+      let handReachX = 0;
+      let handReachY = 0;
+
+      if (this.isReacting) {
+        if (this.diveDirection === -1) {
+          handReachX = -30 * this.size;
+        } else if (this.diveDirection === 1) {
+          handReachX = 30 * this.size;
+        }
+        handReachY = -20 * this.size; // Always reach up when diving
+      }
+
+      // Check collision with expanded area including hand reach
+      const collisionX = this.x + handReachX;
+      const collisionY = this.y + handReachY;
+
+      if (
+        ball.ballX > collisionX - keeperWidth / 2 &&
+        ball.ballX < collisionX + keeperWidth / 2 &&
+        ball.ballY > collisionY - keeperHeight / 2 &&
+        ball.ballY < collisionY + keeperHeight / 2
+      ) {
+        // Calculate reflection vector with more realistic bounce
+        const collisionNormal = this.p
+          .createVector(ball.ballX - collisionX, ball.ballY - collisionY)
+          .normalize();
+        const dot =
+          ball.ballSpeedX * collisionNormal.x +
+          ball.ballSpeedY * collisionNormal.y;
+
+        // More realistic bounce with energy loss
+        const restitution = 0.6;
+        ball.ballSpeedX =
+          (ball.ballSpeedX - 2 * dot * collisionNormal.x) * restitution;
+        ball.ballSpeedY =
+          (ball.ballSpeedY - 2 * dot * collisionNormal.y) * restitution;
+
+        // Calculate spin with reduced magnitude
+        const relativeVelX = ball.ballSpeedX - (this.x - prevX);
+        const relativeVelY = ball.ballSpeedY;
+        ball.spin = this.p.constrain(
+          (relativeVelX * collisionNormal.y -
+            relativeVelY * collisionNormal.x) *
+            0.02,
+          -0.5,
+          0.5
+        );
+
+        // Mark as saved
+        ball.wasShotByPlayer = false;
+        this.isReacting = false; // Reset reaction state after save
+      }
     }
   }
 

@@ -14,10 +14,12 @@ const sketch = (s) => {
   let goalkeeperControls;
   let score = 0;
   let shotsTaken = 0;
-  let playerOneScore = 0; // Track Player 1's score
-  let playerTwoScore = 0; // Track Player 2's score
-  let playerOneShots = 0; // Track Player 1's shots
-  let playerTwoShots = 0; // Track Player 2's shots
+  let playerOneScore = 0;
+  let playerTwoScore = 0;
+  let playerOneShots = 0;
+  let playerTwoShots = 0;
+  let playerOneFlag;
+  let playerTwoFlag;
   const maxShots = 5;
   let gameOver = false;
   let goalMessageTimer = 0;
@@ -26,7 +28,7 @@ const sketch = (s) => {
   let difficulty = "hard";
   let adImage;
   let isTwoPlayerMode = true;
-  let isPlayerOneKicker = true; // Track which player is the kicker
+  let isPlayerOneKicker = true;
 
   const pixelsPerYard = 13.33;
   const fieldWidth = 60 * pixelsPerYard;
@@ -43,6 +45,17 @@ const sketch = (s) => {
 
   s.preload = () => {
     adImage = s.loadImage("/icon-192x192.png");
+    // Load flag images
+    if (window.playerOneCountry) {
+      playerOneFlag = s.loadImage(
+        `https://flagcdn.com/w80/${window.playerOneCountry.toLowerCase()}.png`
+      );
+    }
+    if (window.playerTwoCountry) {
+      playerTwoFlag = s.loadImage(
+        `https://flagcdn.com/w80/${window.playerTwoCountry.toLowerCase()}.png`
+      );
+    }
   };
 
   s.setup = () => {
@@ -143,10 +156,96 @@ const sketch = (s) => {
     }
   };
 
+  function drawGameOver(s) {
+    s.background(0, 0, 0, 230); // Semi-transparent black background
+
+    // Center container
+    const centerX = s.width / 2;
+    const centerY = s.height / 2;
+    const containerWidth = 400;
+    const containerHeight = 300;
+    const containerX = centerX - containerWidth / 2;
+    const containerY = centerY - containerHeight / 2;
+
+    // Draw container background
+    s.fill(28, 33, 48);
+    s.noStroke();
+    s.rect(containerX, containerY, containerWidth, containerHeight, 15);
+
+    // Game Over text
+    s.fill(255);
+    s.textSize(42);
+    s.textAlign(s.CENTER, s.CENTER);
+    s.text("Game Over!", centerX, containerY + 60);
+
+    // Draw flags and scores
+    const flagWidth = 40;
+    const flagHeight = 26;
+    const scoreSpacing = 80;
+
+    // Player One Score and Flag
+    if (playerOneFlag) {
+      s.image(
+        playerOneFlag,
+        centerX - scoreSpacing - flagWidth,
+        centerY - flagHeight / 2,
+        flagWidth,
+        flagHeight
+      );
+    }
+    s.textSize(32);
+    s.text(playerOneScore, centerX - scoreSpacing + flagWidth / 2, centerY);
+
+    // VS text
+    s.textSize(24);
+    s.text("vs", centerX, centerY);
+
+    // Player Two Score and Flag
+    if (playerTwoFlag) {
+      s.image(
+        playerTwoFlag,
+        centerX + scoreSpacing,
+        centerY - flagHeight / 2,
+        flagWidth,
+        flagHeight
+      );
+    }
+    s.textSize(32);
+    s.text(playerTwoScore, centerX + scoreSpacing + flagWidth * 1.5, centerY);
+
+    // Play Again button
+    const buttonWidth = 200;
+    const buttonHeight = 50;
+    const buttonX = centerX - buttonWidth / 2;
+    const buttonY = containerY + containerHeight - buttonHeight - 40;
+
+    // Check if mouse is over button
+    const isHovered =
+      s.mouseX > buttonX &&
+      s.mouseX < buttonX + buttonWidth &&
+      s.mouseY > buttonY &&
+      s.mouseY < buttonY + buttonHeight;
+
+    // Draw button
+    s.fill(isHovered ? "#4CAF50" : "#2E7D32");
+    s.rect(buttonX, buttonY, buttonWidth, buttonHeight, 25);
+
+    // Button text
+    s.fill(255);
+    s.textSize(24);
+    s.text("Play Again", centerX, buttonY + buttonHeight / 2);
+
+    // Add click handler for the button
+    s.mousePressed = () => {
+      if (isHovered) {
+        window.location.href = "/";
+      }
+    };
+  }
+
   s.draw = () => {
     if (!gameOver) {
       s.clear();
-
       drawBackground(s);
       drawField(s);
       drawPenaltyArea(s);
@@ -180,7 +279,6 @@ const sketch = (s) => {
           shotsTaken += 1;
           goalMessageTimer = 60;
           netColorChangeTimer = 60;
-          console.log("Crowd cheers: 'GOOOAL!'");
         }
 
         if (ball.isKicking) {
@@ -195,7 +293,6 @@ const sketch = (s) => {
           ) {
             shotsTaken += 1;
             missMessageTimer = 60;
-            console.log("Crowd groans: 'Missed!'");
           }
         }
 
@@ -209,7 +306,6 @@ const sketch = (s) => {
         }
       }
 
-      // Check for role swap after 5 shots
       if (shotsTaken >= maxShots) {
         if (isPlayerOneKicker) {
           playerOneShots = maxShots;
@@ -242,17 +338,7 @@ const sketch = (s) => {
         missMessageTimer -= 1;
       }
     } else {
-      s.background(0);
-      s.fill(255);
-      s.textSize(32);
-      s.textAlign(s.CENTER, s.CENTER);
-      s.text("Game Over!", s.width / 2, s.height / 2 - 40);
-      s.text(`Player 1 Score: ${playerOneScore}`, s.width / 2, s.height / 2);
-      s.text(
-        `Player 2 Score: ${playerTwoScore}`,
-        s.width / 2,
-        s.height / 2 + 40
-      );
+      drawGameOver(s);
     }
   };
 
@@ -407,32 +493,54 @@ const sketch = (s) => {
   }
 
   function drawUI(s) {
-    // Display shots info near the ads at the top
-    const uiStartY = 50; // Position below ads
+    const uiStartY = 50;
     s.fill(255);
     s.textSize(16);
     s.textAlign(s.LEFT, s.TOP);
 
-    // Show current roles
-    // s.text(
-    //   `Player ${isPlayerOneKicker ? 1 : 2} (Kicker) vs Player ${
-    //     isPlayerOneKicker ? 2 : 1
-    //   } (Goalkeeper)`,
-    //   10,
-    //   uiStartY
-    // );
+    // Draw flags and scores
+    const flagWidth = 30;
+    const flagHeight = 20;
+    const scoreX = 10;
+    const scoreY = uiStartY + 20;
+    const spacing = 10;
 
+    // Player One Score and Flag
+    if (playerOneFlag) {
+      s.image(playerOneFlag, scoreX, scoreY, flagWidth, flagHeight);
+    }
     s.text(
-      `Player ${isPlayerOneKicker ? 1 : 2} Score: ${
-        isPlayerOneKicker ? playerOneScore : playerTwoScore
-      }`,
-      10,
-      uiStartY + 20
+      `Player 1: ${playerOneScore}`,
+      scoreX + flagWidth + spacing,
+      scoreY + flagHeight / 2 - 8
     );
-    s.text(`Shots: ${shotsTaken}/${maxShots}`, 10, uiStartY + 40);
+
+    // Player Two Score and Flag
+    if (playerTwoFlag) {
+      s.image(
+        playerTwoFlag,
+        scoreX,
+        scoreY + flagHeight + spacing,
+        flagWidth,
+        flagHeight
+      );
+    }
+    s.text(
+      `Player 2: ${playerTwoScore}`,
+      scoreX + flagWidth + spacing,
+      scoreY + flagHeight + spacing + flagHeight / 2 - 8
+    );
+
+    // Rest of the UI
+    s.text(
+      `Shots: ${shotsTaken}/${maxShots}`,
+      10,
+      scoreY + (flagHeight + spacing) * 2
+    );
     s.text(`Aim Angle: ${Math.round(player.aimAngle)}°`, 10, s.height - 60);
     s.text(`Power: ${Math.round(player.kickPower * 100)}%`, 10, s.height - 40);
 
+    // Draw minimap
     const miniMapWidth = 100;
     const miniMapHeight = 100;
     const miniMapX = s.width - miniMapWidth - 10;
@@ -462,27 +570,51 @@ const sketch = (s) => {
   }
 };
 
-export default function GameField() {
+export default function GameField({ playerOneCountry, playerTwoCountry }) {
   const sketchRef = useRef();
+  const p5Instance = useRef(null);
+  const mountedRef = useRef(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      import("p5").then((p5) => {
-        const p5Instance = new p5.default(sketch, sketchRef.current);
-        return () => {
-          p5Instance.remove();
-        };
+    // Make country codes available to the sketch
+    window.playerOneCountry = playerOneCountry;
+    window.playerTwoCountry = playerTwoCountry;
+
+    if (mountedRef.current) return;
+    mountedRef.current = true;
+
+    let p5;
+    if (typeof window !== "undefined" && !p5Instance.current) {
+      import("p5").then((p5Module) => {
+        p5 = p5Module.default;
+        if (!p5Instance.current && sketchRef.current) {
+          p5Instance.current = new p5(sketch, sketchRef.current);
+        }
       });
     }
-  }, []);
+
+    return () => {
+      mountedRef.current = false;
+      if (p5Instance.current) {
+        p5Instance.current.remove();
+        p5Instance.current = null;
+      }
+      // Clean up global variables
+      delete window.playerOneCountry;
+      delete window.playerTwoCountry;
+    };
+  }, [playerOneCountry, playerTwoCountry]);
 
   return (
-    <div className="relative">
-      <div className="absolute top-10 left-0 w-full h-20 z-10"></div>
+    <div className="flex items-center justify-center w-full h-full">
       <div
         ref={sketchRef}
-        className="relative z-20"
-        style={{ backgroundColor: "transparent" }}
+        className="relative"
+        style={{
+          width: "800px",
+          height: "800px",
+          margin: "0 auto",
+        }}
       />
     </div>
   );

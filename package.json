@@ -13,7 +13,10 @@
     "p5": "^1.11.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-p5-wrapper": "^4.1.2"
+    "react-flags-select": "^2.4.0",
+    "react-p5-wrapper": "^4.1.2",
+    "react-select": "^5.10.1",
+    "react-world-flags": "^1.6.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

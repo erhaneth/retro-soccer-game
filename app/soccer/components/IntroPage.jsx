@@ -1,10 +1,28 @@
 import React, { useState } from "react";
 import ReactFlagsSelect from "react-flags-select";
 
+const modeOptions = [
+  {
+    key: "single",
+    label: "Single Player",
+    icon: "🎮",
+    description: "Play against our AI goalkeeper.",
+  },
+  {
+    key: "two",
+    label: "Two Players",
+    icon: "👥",
+    description: "Challenge a friend!",
+  },
+];
+
+const cardBase =
+  "bg-slate-700/60 rounded-2xl shadow-md p-6 flex flex-col items-center w-full";
+
 const IntroPage = ({ onStartGame }) => {
   const [playerOneCountry, setPlayerOneCountry] = useState("");
   const [playerTwoCountry, setPlayerTwoCountry] = useState("");
-  const [mode, setMode] = useState("single"); // "single" or "two"
+  const [mode, setMode] = useState("single");
 
   const handleStartGame = () => {
     if (playerOneCountry && (mode === "single" || playerTwoCountry)) {
@@ -17,101 +35,115 @@ const IntroPage = ({ onStartGame }) => {
   };
 
   return (
-    <div className="w-[500px] p-10 bg-slate-800/90 rounded-2xl shadow-2xl backdrop-blur-sm">
-      <h1 className="text-4xl font-bold text-white mb-12 text-center">
-        Select Your Country and Game Mode
-      </h1>
+    <div className="max-w-md w-full mx-auto p-6 sm:p-10 bg-slate-800/90 rounded-3xl shadow-2xl backdrop-blur-md flex flex-col gap-8 mt-8 mb-8">
+      {/* Header */}
+      <header className="text-center mb-2">
+        {/* <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-2 tracking-tight">
+          Welcome to Retro Soccer!
+        </h1> */}
+        <p className="text-lg text-slate-300 font-medium max-w-xs mx-auto">
+          Choose your game mode and countries to get started.
+        </p>
+      </header>
 
-      <div className="space-y-8">
-        {/* Mode Toggle */}
-        <div className="bg-slate-700/50 p-4 rounded-xl backdrop-blur-sm">
-          <h2 className="text-xl font-semibold text-white mb-4">Game Mode</h2>
-          <div className="flex gap-4">
+      {/* Game Mode Toggle */}
+      <section className={cardBase + " py-4 gap-2"}>
+        <span className="text-lg font-semibold text-white mb-2">Game Mode</span>
+        <div className="flex w-full gap-4 justify-center">
+          {modeOptions.map((opt) => (
             <button
-              onClick={() => setMode("single")}
-              className={`flex-1 py-2 px-4 rounded-lg transition-all ${
-                mode === "single"
-                  ? "bg-emerald-500 text-white"
-                  : "bg-slate-600 text-slate-300 hover:bg-slate-500"
-              }`}
+              key={opt.key}
+              onClick={() => setMode(opt.key)}
+              className={`flex-1 flex flex-col items-center py-3 px-2 rounded-xl border-2 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-400 text-base font-semibold gap-1
+                ${
+                  mode === opt.key
+                    ? "bg-emerald-500 border-emerald-500 text-white shadow-lg"
+                    : "bg-slate-600 border-slate-500 text-slate-200 hover:bg-slate-500"
+                }
+              `}
+              aria-pressed={mode === opt.key}
             >
-              Single Player
+              <span className="text-2xl mb-1" aria-hidden="true">
+                {opt.icon}
+              </span>
+              {opt.label}
+              <span className="text-xs text-slate-200 font-normal mt-1 opacity-80">
+                {opt.description}
+              </span>
             </button>
-            <button
-              onClick={() => setMode("two")}
-              className={`flex-1 py-2 px-4 rounded-lg transition-all ${
-                mode === "two"
-                  ? "bg-emerald-500 text-white"
-                  : "bg-slate-600 text-slate-300 hover:bg-slate-500"
-              }`}
-            >
-              Two Players
-            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Player One Picker */}
+      <section className={cardBase + " gap-2"}>
+        <span className="text-xl font-semibold text-white mb-2 w-full text-left">
+          Player One
+        </span>
+        <ReactFlagsSelect
+          selected={playerOneCountry}
+          onSelect={setPlayerOneCountry}
+          searchable
+          searchPlaceholder="Search countries"
+          placeholder="Select a country"
+          className="menu-flags w-full"
+          selectButtonClassName="!bg-white !text-black !border-0 !rounded-lg !py-3 !w-full"
+          searchInputClassName="!bg-white !text-black"
+          aria-label="Select country for Player One"
+        />
+      </section>
+
+      {/* Player Two or AI Card */}
+      <section className={cardBase + " gap-2 min-h-[120px]"}>
+        {mode === "two" ? (
+          <>
+            <span className="text-xl font-semibold text-white mb-2 w-full text-left">
+              Player Two
+            </span>
+            <ReactFlagsSelect
+              selected={playerTwoCountry}
+              onSelect={setPlayerTwoCountry}
+              searchable
+              searchPlaceholder="Search countries"
+              placeholder="Select a country"
+              className="menu-flags w-full"
+              selectButtonClassName="!bg-white !text-black !border-0 !rounded-lg !py-3 !w-full"
+              searchInputClassName="!bg-white !text-black"
+              aria-label="Select country for Player Two"
+            />
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full py-2 w-full">
+            <span className="text-2xl font-semibold text-white mb-1 flex items-center gap-2">
+              <span role="img" aria-label="AI Bot" className="text-3xl">
+                🤖
+              </span>{" "}
+              AI Goalkeeper
+            </span>
+            <span className="text-slate-300 text-center text-base mt-1 max-w-xs">
+              You'll face off against our smart AI goalie. Good luck!
+            </span>
           </div>
-        </div>
+        )}
+      </section>
 
-        <div className="bg-slate-700/50 p-8 rounded-xl backdrop-blur-sm relative z-20">
-          <h2 className="text-2xl font-semibold text-white mb-4">Player One</h2>
-          <ReactFlagsSelect
-            selected={playerOneCountry}
-            onSelect={setPlayerOneCountry}
-            searchable
-            searchPlaceholder="Search countries"
-            placeholder="Select a country"
-            className="menu-flags"
-            selectButtonClassName="!bg-white !text-black !border-0 !rounded-lg !py-3"
-            searchInputClassName="!bg-white !text-black"
-          />
-        </div>
-
-        {/* Always render the Player Two box, but only show the picker if mode === 'two' */}
-        <div
-          className="bg-slate-700/50 p-8 rounded-xl backdrop-blur-sm relative z-10"
-          style={{ minHeight: 120 }}
-        >
-          {mode === "two" ? (
-            <>
-              <h2 className="text-2xl font-semibold text-white mb-4">
-                Player Two
-              </h2>
-              <ReactFlagsSelect
-                selected={playerTwoCountry}
-                onSelect={setPlayerTwoCountry}
-                searchable
-                searchPlaceholder="Search countries"
-                placeholder="Select a country"
-                className="menu-flags"
-                selectButtonClassName="!bg-white !text-black !border-0 !rounded-lg !py-3"
-                searchInputClassName="!bg-white !text-black"
-              />
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full py-4">
-              <span className="text-2xl font-semibold text-white mb-2 flex items-center gap-2">
-                <span role="img" aria-label="AI Bot" className="text-3xl">
-                  🤖
-                </span>{" "}
-                AI Goalkeeper
-              </span>
-              <span className="text-slate-300 text-center text-base mt-2">
-                You'll face off against our AI goalie!
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-
+      {/* Start Button */}
       <button
         onClick={handleStartGame}
         disabled={!playerOneCountry || (mode === "two" && !playerTwoCountry)}
-        className={`mt-10 w-full py-4 px-6 rounded-xl text-xl font-semibold transition-all duration-200 
+        className={`mt-2 w-full py-4 px-6 rounded-2xl text-xl font-bold transition-all duration-200 tracking-wide
           ${
             playerOneCountry && (mode === "single" || playerTwoCountry)
-              ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg hover:shadow-emerald-500/25"
+              ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg hover:shadow-emerald-500/25 focus:ring-2 focus:ring-emerald-400"
               : "bg-slate-600/50 text-slate-400 cursor-not-allowed"
           }`}
+        aria-disabled={
+          !playerOneCountry || (mode === "two" && !playerTwoCountry)
+        }
       >
-        Start Game
+        {mode === "single"
+          ? "Start Single Player Game"
+          : "Start Two Player Game"}
       </button>
     </div>
   );

@@ -4,10 +4,15 @@ import ReactFlagsSelect from "react-flags-select";
 const IntroPage = ({ onStartGame }) => {
   const [playerOneCountry, setPlayerOneCountry] = useState("");
   const [playerTwoCountry, setPlayerTwoCountry] = useState("");
+  const [mode, setMode] = useState("single"); // "single" or "two"
 
   const handleStartGame = () => {
-    if (playerOneCountry && playerTwoCountry) {
-      onStartGame(playerOneCountry, playerTwoCountry);
+    if (playerOneCountry && (mode === "single" || playerTwoCountry)) {
+      onStartGame(
+        playerOneCountry,
+        mode === "single" ? null : playerTwoCountry,
+        mode
+      );
     }
   };
 
@@ -18,6 +23,33 @@ const IntroPage = ({ onStartGame }) => {
       </h1>
 
       <div className="space-y-8">
+        {/* Mode Toggle */}
+        <div className="bg-slate-700/50 p-4 rounded-xl backdrop-blur-sm">
+          <h2 className="text-xl font-semibold text-white mb-4">Game Mode</h2>
+          <div className="flex gap-4">
+            <button
+              onClick={() => setMode("single")}
+              className={`flex-1 py-2 px-4 rounded-lg transition-all ${
+                mode === "single"
+                  ? "bg-emerald-500 text-white"
+                  : "bg-slate-600 text-slate-300 hover:bg-slate-500"
+              }`}
+            >
+              Single Player
+            </button>
+            <button
+              onClick={() => setMode("two")}
+              className={`flex-1 py-2 px-4 rounded-lg transition-all ${
+                mode === "two"
+                  ? "bg-emerald-500 text-white"
+                  : "bg-slate-600 text-slate-300 hover:bg-slate-500"
+              }`}
+            >
+              Two Players
+            </button>
+          </div>
+        </div>
+
         <div className="bg-slate-700/50 p-8 rounded-xl backdrop-blur-sm relative z-20">
           <h2 className="text-2xl font-semibold text-white mb-4">Player One</h2>
           <ReactFlagsSelect
@@ -32,27 +64,31 @@ const IntroPage = ({ onStartGame }) => {
           />
         </div>
 
-        <div className="bg-slate-700/50 p-8 rounded-xl backdrop-blur-sm relative z-10">
-          <h2 className="text-2xl font-semibold text-white mb-4">Player Two</h2>
-          <ReactFlagsSelect
-            selected={playerTwoCountry}
-            onSelect={setPlayerTwoCountry}
-            searchable
-            searchPlaceholder="Search countries"
-            placeholder="Select a country"
-            className="menu-flags"
-            selectButtonClassName="!bg-white !text-black !border-0 !rounded-lg !py-3"
-            searchInputClassName="!bg-white !text-black"
-          />
-        </div>
+        {mode === "two" && (
+          <div className="bg-slate-700/50 p-8 rounded-xl backdrop-blur-sm relative z-10">
+            <h2 className="text-2xl font-semibold text-white mb-4">
+              Player Two
+            </h2>
+            <ReactFlagsSelect
+              selected={playerTwoCountry}
+              onSelect={setPlayerTwoCountry}
+              searchable
+              searchPlaceholder="Search countries"
+              placeholder="Select a country"
+              className="menu-flags"
+              selectButtonClassName="!bg-white !text-black !border-0 !rounded-lg !py-3"
+              searchInputClassName="!bg-white !text-black"
+            />
+          </div>
+        )}
       </div>
 
       <button
         onClick={handleStartGame}
-        disabled={!playerOneCountry || !playerTwoCountry}
+        disabled={!playerOneCountry || (mode === "two" && !playerTwoCountry)}
         className={`mt-10 w-full py-4 px-6 rounded-xl text-xl font-semibold transition-all duration-200 
           ${
-            playerOneCountry && playerTwoCountry
+            playerOneCountry && (mode === "single" || playerTwoCountry)
               ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg hover:shadow-emerald-500/25"
               : "bg-slate-600/50 text-slate-400 cursor-not-allowed"
           }`}

@@ -14,6 +14,9 @@ export class Goalkeeper {
     this.reactionDelay = 0;
     this.diveDirection = 0; // -1 for left, 1 for right, 0 for none
     this.targetX = this.x; // Target position for movement
+    this.reactionSpeed = 0.1; // Base reaction speed
+    this.predictionFactor = 0.3; // How much to predict ball movement
+    this.width = 20 * scaleX; // Goalkeeper width for collision detection
 
     this.isMoving = false;
     this.legFrame = 0;
@@ -26,13 +29,31 @@ export class Goalkeeper {
 
     // Only update position if not in two-player mode
     if (!this.p.isTwoPlayerMode) {
-      // Existing AI behavior
-      const targetX = this.p.lerp(this.x, ball.ballX, this.reactionSpeed);
+      if (ball.isKicking) {
+        // When ball is being kicked, predict where it will go
+        const predictedX = ball.ballX + ball.ballSpeedX * this.predictionFactor;
+        this.targetX = this.p.lerp(this.x, predictedX, this.reactionSpeed);
+      } else {
+        // When ball is moving, track it with some prediction
+        const targetX = ball.ballX + ball.ballSpeedX * this.predictionFactor;
+        this.targetX = this.p.lerp(this.x, targetX, this.reactionSpeed);
+      }
+
+      // Move towards target position
       this.x = this.p.constrain(
-        targetX,
+        this.targetX,
         this.p.goalX + this.width / 2,
         this.p.goalX + this.p.goalWidth - this.width / 2
       );
+
+      // Update movement animation
+      this.isMoving = Math.abs(this.x - prevX) > 0.1;
+      if (this.isMoving) {
+        this.legFrame += this.frameSpeed;
+        if (this.legFrame > 4) this.legFrame = 0;
+      } else {
+        this.legFrame = 0;
+      }
     }
 
     // Stay centered unless reacting to a shot
@@ -42,72 +63,37 @@ export class Goalkeeper {
     }
 
     // Initiate reaction when ball is shot
-    if (ball.isKicking && !this.isReacting && this.p.random() > 0.3) {
+    if (ball.isKicking && !this.isReacting) {
       this.isReacting = true;
-      this.reactionDelay = this.p.random(5, 15); // ~0.08-0.25s delay at 60fps
+      // Adjust reaction delay based on difficulty
+      const baseDelay =
+        this.difficulty === "easy" ? 15 : this.difficulty === "medium" ? 10 : 5;
+      this.reactionDelay = this.p.random(baseDelay - 2, baseDelay + 2);
     }
 
     // Handle reaction after delay
     if (this.isReacting && this.reactionDelay > 0) {
-      this.reactionDelay -= 1;
+      this.reactionDelay--;
+      if (this.reactionDelay <= 0) {
+        // Determine dive direction based on ball position
+        const ballDirection = ball.ballX - this.x;
+        this.diveDirection = ballDirection > 0 ? 1 : -1;
 
-      if (this.difficulty !== "easy") {
-        // Predict ball's trajectory and move
-        let predictedX = ball.ballX;
-        let predictedY = ball.ballY;
-        let tempSpeedX = ball.ballSpeedX;
-        let tempSpeedY = ball.ballSpeedY;
-        for (let t = 0; t < 30; t++) {
-          // Simulate 0.5s at 60fps
-          predictedX += tempSpeedX;
-          predictedY += tempSpeedY;
-          const velocity = this.p.createVector(tempSpeedX, tempSpeedY);
-          const magnusForce = velocity
-            .copy()
-            .rotate(this.p.HALF_PI)
-            .mult(ball.spin * 0.05);
-          tempSpeedX += magnusForce.x;
-          tempSpeedY += magnusForce.y;
-          tempSpeedX *= 0.98;
-          tempSpeedY *= 0.98;
-        }
-        this.targetX = this.p.constrain(
-          predictedX,
-          this.p.goalX + 20 * this.scaleX,
-          this.p.goalX + this.p.goalWidth - 20 * this.scaleX
-        );
-        this.diveDirection =
-          predictedX < this.x ? -1 : predictedX > this.x ? 1 : 0;
-      } else {
-        // Easy mode: less accurate movement
-        this.targetX = this.x + this.p.random(-20, 20) * this.scaleX;
-        this.diveDirection =
-          this.targetX < this.x ? -1 : this.targetX > this.x ? 1 : 0;
+        // Adjust dive timing based on difficulty
+        const diveSpeed =
+          this.difficulty === "easy"
+            ? 0.1
+            : this.difficulty === "medium"
+            ? 0.15
+            : 0.2;
+        this.x += this.diveDirection * this.speed * diveSpeed;
       }
     }
 
-    // Smoothly move toward targetX with acceleration
-    const accel = 0.5 * this.speed;
-    const velX = (this.targetX - this.x) * 0.1; // Proportional control
-    this.x += this.p.constrain(velX, -this.speed, this.speed);
-    this.isMoving = Math.abs(velX) > 0.1;
-
-    // Reset reaction after shot is resolved
+    // Reset reaction state when ball is no longer being kicked
     if (!ball.isKicking) {
       this.isReacting = false;
-      this.reactionDelay = 0;
       this.diveDirection = 0;
-      this.targetX = this.p.width / 2; // Return to center
-    }
-
-    // Update leg animation for movement
-    if (this.isMoving) {
-      this.moveDirection.x = this.x - prevX;
-      this.legFrame += this.frameSpeed;
-      if (this.legFrame > 4) this.legFrame = 0;
-    } else {
-      this.moveDirection.x = 0;
-      this.legFrame = 0;
     }
 
     // Improved ball saving logic

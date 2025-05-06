@@ -9,6 +9,7 @@ export default function Game() {
   const searchParams = useSearchParams();
   const playerOneCountry = searchParams.get("p1");
   const playerTwoCountry = searchParams.get("p2");
+  const mode = searchParams.get("mode") || "single";
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -29,6 +30,7 @@ export default function Game() {
           <GameField
             playerOneCountry={playerOneCountry}
             playerTwoCountry={playerTwoCountry}
+            mode={mode}
           />
         </div>
       )}

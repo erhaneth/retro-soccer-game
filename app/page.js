@@ -6,9 +6,16 @@ import IntroPage from "./soccer/components/IntroPage";
 export default function Home() {
   const router = useRouter();
 
-  const handleStartGame = (playerOneCountry, playerTwoCountry) => {
-    // Navigate to the game page with selected countries
-    router.push(`/soccer?p1=${playerOneCountry}&p2=${playerTwoCountry}`);
+  const handleStartGame = (playerOneCountry, playerTwoCountry, mode) => {
+    // Navigate to the game page with selected countries and mode
+    const params = new URLSearchParams({
+      p1: playerOneCountry,
+      mode: mode,
+    });
+    if (playerTwoCountry) {
+      params.append("p2", playerTwoCountry);
+    }
+    router.push(`/soccer?${params.toString()}`);
   };
 
   return (

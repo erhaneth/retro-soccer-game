@@ -27,7 +27,7 @@ const sketch = (s) => {
   let missMessageTimer = 0;
   let difficulty = "hard";
   let adImage;
-  let isTwoPlayerMode = true;
+  let isTwoPlayerMode = false;
   let isPlayerOneKicker = true;
 
   const pixelsPerYard = 13.33;
@@ -63,6 +63,9 @@ const sketch = (s) => {
     canvas.style("background-color", "transparent");
     s.noSmooth();
     s.pixelDensity(1);
+
+    // Set game mode from window variable
+    isTwoPlayerMode = window.isTwoPlayerMode;
 
     drawBackground(s);
     drawField(s);
@@ -156,93 +159,6 @@ const sketch = (s) => {
     }
   };
 
-  function drawGameOver(s) {
-    s.background(0, 0, 0, 230); // Semi-transparent black background
-
-    // Center container
-    const centerX = s.width / 2;
-    const centerY = s.height / 2;
-    const containerWidth = 400;
-    const containerHeight = 300;
-    const containerX = centerX - containerWidth / 2;
-    const containerY = centerY - containerHeight / 2;
-
-    // Draw container background
-    s.fill(28, 33, 48);
-    s.noStroke();
-    s.rect(containerX, containerY, containerWidth, containerHeight, 15);
-
-    // Game Over text
-    s.fill(255);
-    s.textSize(42);
-    s.textAlign(s.CENTER, s.CENTER);
-    s.text("Game Over!", centerX, containerY + 60);
-
-    // Draw flags and scores
-    const flagWidth = 40;
-    const flagHeight = 26;
-    const scoreSpacing = 80;
-
-    // Player One Score and Flag
-    if (playerOneFlag) {
-      s.image(
-        playerOneFlag,
-        centerX - scoreSpacing - flagWidth,
-        centerY - flagHeight / 2,
-        flagWidth,
-        flagHeight
-      );
-    }
-    s.textSize(32);
-    s.text(playerOneScore, centerX - scoreSpacing + flagWidth / 2, centerY);
-
-    // VS text
-    s.textSize(24);
-    s.text("vs", centerX, centerY);
-
-    // Player Two Score and Flag
-    if (playerTwoFlag) {
-      s.image(
-        playerTwoFlag,
-        centerX + scoreSpacing,
-        centerY - flagHeight / 2,
-        flagWidth,
-        flagHeight
-      );
-    }
-    s.textSize(32);
-    s.text(playerTwoScore, centerX + scoreSpacing + flagWidth * 1.5, centerY);
-
-    // Play Again button
-    const buttonWidth = 200;
-    const buttonHeight = 50;
-    const buttonX = centerX - buttonWidth / 2;
-    const buttonY = containerY + containerHeight - buttonHeight - 40;
-
-    // Check if mouse is over button
-    const isHovered =
-      s.mouseX > buttonX &&
-      s.mouseX < buttonX + buttonWidth &&
-      s.mouseY > buttonY &&
-      s.mouseY < buttonY + buttonHeight;
-
-    // Draw button
-    s.fill(isHovered ? "#4CAF50" : "#2E7D32");
-    s.rect(buttonX, buttonY, buttonWidth, buttonHeight, 25);
-
-    // Button text
-    s.fill(255);
-    s.textSize(24);
-    s.text("Play Again", centerX, buttonY + buttonHeight / 2);
-
-    // Add click handler for the button
-    s.mousePressed = () => {
-      if (isHovered) {
-        window.location.href = "/";
-      }
-    };
-  }
-
   s.draw = () => {
     if (!gameOver) {
       s.clear();
@@ -307,11 +223,15 @@ const sketch = (s) => {
       }
 
       if (shotsTaken >= maxShots) {
-        if (isPlayerOneKicker) {
-          playerOneShots = maxShots;
-          swapRoles();
+        if (isTwoPlayerMode) {
+          if (isPlayerOneKicker) {
+            playerOneShots = maxShots;
+            swapRoles();
+          } else {
+            playerTwoShots = maxShots;
+            gameOver = true;
+          }
         } else {
-          playerTwoShots = maxShots;
           gameOver = true;
         }
       }
@@ -568,17 +488,115 @@ const sketch = (s) => {
       s.rect(10, s.height - 20, player.kickPower * 100, 10);
     }
   }
+
+  function drawGameOver(s) {
+    s.background(0, 0, 0, 230); // Semi-transparent black background
+
+    // Center container
+    const centerX = s.width / 2;
+    const centerY = s.height / 2;
+    const containerWidth = 400;
+    const containerHeight = 300;
+    const containerX = centerX - containerWidth / 2;
+    const containerY = centerY - containerHeight / 2;
+
+    // Draw container background
+    s.fill(28, 33, 48);
+    s.noStroke();
+    s.rect(containerX, containerY, containerWidth, containerHeight, 15);
+
+    // Game Over text
+    s.fill(255);
+    s.textSize(42);
+    s.textAlign(s.CENTER, s.CENTER);
+    s.text("Game Over!", centerX, containerY + 60);
+
+    if (isTwoPlayerMode) {
+      // Draw flags and scores for two-player mode
+      const flagWidth = 40;
+      const flagHeight = 26;
+      const scoreSpacing = 80;
+
+      // Player One Score and Flag
+      if (playerOneFlag) {
+        s.image(
+          playerOneFlag,
+          centerX - scoreSpacing - flagWidth,
+          centerY - flagHeight / 2,
+          flagWidth,
+          flagHeight
+        );
+      }
+      s.textSize(32);
+      s.text(playerOneScore, centerX - scoreSpacing + flagWidth / 2, centerY);
+
+      // VS text
+      s.textSize(24);
+      s.text("vs", centerX, centerY);
+
+      // Player Two Score and Flag
+      if (playerTwoFlag) {
+        s.image(
+          playerTwoFlag,
+          centerX + scoreSpacing,
+          centerY - flagHeight / 2,
+          flagWidth,
+          flagHeight
+        );
+      }
+      s.textSize(32);
+      s.text(playerTwoScore, centerX + scoreSpacing + flagWidth * 1.5, centerY);
+    } else {
+      // Single player mode - show final score
+      s.textSize(32);
+      s.text(`Final Score: ${playerOneScore}`, centerX, centerY);
+    }
+
+    // Play Again button
+    const buttonWidth = 200;
+    const buttonHeight = 50;
+    const buttonX = centerX - buttonWidth / 2;
+    const buttonY = containerY + containerHeight - buttonHeight - 40;
+
+    // Check if mouse is over button
+    const isHovered =
+      s.mouseX > buttonX &&
+      s.mouseX < buttonX + buttonWidth &&
+      s.mouseY > buttonY &&
+      s.mouseY < buttonY + buttonHeight;
+
+    // Draw button
+    s.fill(isHovered ? "#4CAF50" : "#2E7D32");
+    s.rect(buttonX, buttonY, buttonWidth, buttonHeight, 25);
+
+    // Button text
+    s.fill(255);
+    s.textSize(24);
+    s.text("Play Again", centerX, buttonY + buttonHeight / 2);
+
+    // Add click handler for the button
+    s.mousePressed = () => {
+      if (isHovered) {
+        window.location.href = "/";
+      }
+    };
+  }
 };
 
-export default function GameField({ playerOneCountry, playerTwoCountry }) {
+export default function GameField({
+  playerOneCountry,
+  playerTwoCountry,
+  mode,
+}) {
   const sketchRef = useRef();
   const p5Instance = useRef(null);
   const mountedRef = useRef(false);
 
   useEffect(() => {
-    // Make country codes available to the sketch
+    // Make country codes and game mode available to the sketch
     window.playerOneCountry = playerOneCountry;
     window.playerTwoCountry = playerTwoCountry;
+    window.isTwoPlayerMode = mode === "two";
 
     if (mountedRef.current) return;
     mountedRef.current = true;
@@ -602,8 +620,9 @@ export default function GameField({ playerOneCountry, playerTwoCountry }) {
       // Clean up global variables
       delete window.playerOneCountry;
       delete window.playerTwoCountry;
+      delete window.isTwoPlayerMode;
     };
-  }, [playerOneCountry, playerTwoCountry]);
+  }, [playerOneCountry, playerTwoCountry, mode]);
 
   return (
     <div className="flex items-center justify-center w-full h-full">

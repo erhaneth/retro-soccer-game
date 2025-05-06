@@ -435,27 +435,29 @@ const sketch = (s) => {
       scoreY + flagHeight / 2 - 8
     );
 
-    // Player Two Score and Flag
-    if (playerTwoFlag) {
-      s.image(
-        playerTwoFlag,
-        scoreX,
-        scoreY + flagHeight + spacing,
-        flagWidth,
-        flagHeight
+    // Player Two Score and Flag (only if two player mode)
+    if (isTwoPlayerMode) {
+      if (playerTwoFlag) {
+        s.image(
+          playerTwoFlag,
+          scoreX,
+          scoreY + flagHeight + spacing,
+          flagWidth,
+          flagHeight
+        );
+      }
+      s.text(
+        `Player 2: ${playerTwoScore}`,
+        scoreX + flagWidth + spacing,
+        scoreY + flagHeight + spacing + flagHeight / 2 - 8
       );
     }
-    s.text(
-      `Player 2: ${playerTwoScore}`,
-      scoreX + flagWidth + spacing,
-      scoreY + flagHeight + spacing + flagHeight / 2 - 8
-    );
 
     // Rest of the UI
     s.text(
       `Shots: ${shotsTaken}/${maxShots}`,
       10,
-      scoreY + (flagHeight + spacing) * 2
+      scoreY + (flagHeight + spacing) * (isTwoPlayerMode ? 2 : 1)
     );
     s.text(`Aim Angle: ${Math.round(player.aimAngle)}°`, 10, s.height - 60);
     s.text(`Power: ${Math.round(player.kickPower * 100)}%`, 10, s.height - 40);

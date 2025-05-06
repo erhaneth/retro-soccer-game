@@ -19,7 +19,7 @@ const IntroPage = ({ onStartGame }) => {
   return (
     <div className="w-[500px] p-10 bg-slate-800/90 rounded-2xl shadow-2xl backdrop-blur-sm">
       <h1 className="text-4xl font-bold text-white mb-12 text-center">
-        Select Your Countries
+        Select Your Country and Game Mode
       </h1>
 
       <div className="space-y-8">
@@ -64,23 +64,41 @@ const IntroPage = ({ onStartGame }) => {
           />
         </div>
 
-        {mode === "two" && (
-          <div className="bg-slate-700/50 p-8 rounded-xl backdrop-blur-sm relative z-10">
-            <h2 className="text-2xl font-semibold text-white mb-4">
-              Player Two
-            </h2>
-            <ReactFlagsSelect
-              selected={playerTwoCountry}
-              onSelect={setPlayerTwoCountry}
-              searchable
-              searchPlaceholder="Search countries"
-              placeholder="Select a country"
-              className="menu-flags"
-              selectButtonClassName="!bg-white !text-black !border-0 !rounded-lg !py-3"
-              searchInputClassName="!bg-white !text-black"
-            />
-          </div>
-        )}
+        {/* Always render the Player Two box, but only show the picker if mode === 'two' */}
+        <div
+          className="bg-slate-700/50 p-8 rounded-xl backdrop-blur-sm relative z-10"
+          style={{ minHeight: 120 }}
+        >
+          {mode === "two" ? (
+            <>
+              <h2 className="text-2xl font-semibold text-white mb-4">
+                Player Two
+              </h2>
+              <ReactFlagsSelect
+                selected={playerTwoCountry}
+                onSelect={setPlayerTwoCountry}
+                searchable
+                searchPlaceholder="Search countries"
+                placeholder="Select a country"
+                className="menu-flags"
+                selectButtonClassName="!bg-white !text-black !border-0 !rounded-lg !py-3"
+                searchInputClassName="!bg-white !text-black"
+              />
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full py-4">
+              <span className="text-2xl font-semibold text-white mb-2 flex items-center gap-2">
+                <span role="img" aria-label="AI Bot" className="text-3xl">
+                  🤖
+                </span>{" "}
+                AI Goalkeeper
+              </span>
+              <span className="text-slate-300 text-center text-base mt-2">
+                You'll face off against our AI goalie!
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       <button

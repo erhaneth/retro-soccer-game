@@ -30,6 +30,21 @@ const sketch = (s) => {
   let isTwoPlayerMode = false;
   let isPlayerOneKicker = true;
 
+  // Add new variables for role swap animation
+  let isSwappingRoles = false;
+  let swapStartTime = 0;
+  const swapDuration = 2000; // 2 seconds for the swap animation
+  let swapStartPositions = {
+    player: { x: 0, y: 0 },
+    goalkeeper: { x: 0, y: 0 },
+  };
+  let swapTargetPositions = {
+    player: { x: 0, y: 0 },
+    goalkeeper: { x: 0, y: 0 },
+  };
+  let turnIndicatorTimer = 0;
+  const turnIndicatorDuration = 3000; // 3 seconds for turn indicator display
+
   const pixelsPerYard = 13.33;
   const fieldWidth = 60 * pixelsPerYard;
   const fieldHeight = 50 * pixelsPerYard;
@@ -109,10 +124,25 @@ const sketch = (s) => {
 
   function swapRoles() {
     isPlayerOneKicker = !isPlayerOneKicker;
+    // Store current positions for animation
+    swapStartPositions = {
+      player: { x: player.x, y: player.y },
+      goalkeeper: { x: goalkeeper.x, y: goalkeeper.y },
+    };
+
+    // Calculate target positions (swap positions)
+    swapTargetPositions = {
+      player: { x: goalkeeper.x, y: goalkeeper.y },
+      goalkeeper: { x: player.x, y: player.y },
+    };
+
+    // Start the swap animation
+    isSwappingRoles = true;
+    swapStartTime = s.millis();
+    turnIndicatorTimer = turnIndicatorDuration;
+
     // Reset shots for the new kicker
     shotsTaken = 0;
-    // Reinitialize players with swapped roles
-    initializeRoles();
   }
 
   s.keyPressed = () => {
@@ -169,6 +199,43 @@ const sketch = (s) => {
       drawPenaltyArea(s);
       drawGoal(s, netColorChangeTimer);
       drawAds(s);
+
+      // Handle role swap animation
+      if (isSwappingRoles) {
+        const currentTime = s.millis();
+        const swapProgress = (currentTime - swapStartTime) / swapDuration;
+
+        if (swapProgress >= 1) {
+          // Animation complete, reinitialize players with swapped roles
+          isSwappingRoles = false;
+          initializeRoles();
+        } else {
+          // Calculate intermediate positions using smooth easing
+          const easedProgress = 0.5 - Math.cos(swapProgress * Math.PI) / 2;
+
+          // Update positions
+          player.x = s.lerp(
+            swapStartPositions.player.x,
+            swapTargetPositions.player.x,
+            easedProgress
+          );
+          player.y = s.lerp(
+            swapStartPositions.player.y,
+            swapTargetPositions.player.y,
+            easedProgress
+          );
+          goalkeeper.x = s.lerp(
+            swapStartPositions.goalkeeper.x,
+            swapTargetPositions.goalkeeper.x,
+            easedProgress
+          );
+          goalkeeper.y = s.lerp(
+            swapStartPositions.goalkeeper.y,
+            swapTargetPositions.goalkeeper.y,
+            easedProgress
+          );
+        }
+      }
 
       if (goalkeeper) {
         if (isTwoPlayerMode) {
@@ -248,6 +315,98 @@ const sketch = (s) => {
         } else {
           gameOver = true;
         }
+      }
+
+      // Draw enhanced turn indicator
+      if (turnIndicatorTimer > 0) {
+        turnIndicatorTimer -= s.deltaTime;
+
+        // Retro Pulsing: Blinking text (toggle visibility or color)
+
+        const blinkSpeed = 30; // Lower is faster blinking
+        const isVisible = s.frameCount % blinkSpeed < blinkSpeed / 2;
+
+        s.push();
+        // Move indicator to the bottom center (or top for a scoreboard feel)
+        s.translate(s.width / 2, s.height - 60); // Adjusted Y position for a bar
+
+        // --- Background Bar ---
+        const barWidth = 300;
+        const barHeight = 60;
+        const barColor = s.color(0, 0, 50); // Dark retro blue
+        const borderColor = s.color(255, 200, 0); // Retro yellow/gold
+
+        s.fill(barColor);
+        s.stroke(borderColor);
+        s.strokeWeight(4); // Chunky border
+        s.rectMode(s.CENTER);
+        s.rect(0, 0, barWidth, barHeight);
+
+        // --- Swapping Icon ---
+        const iconSize = 20;
+        const iconPadding = 15;
+        const iconY = 0; // Centered vertically in the bar
+        const iconColor = s.color(0, 255, 255); // Cyan
+
+        s.fill(iconColor);
+        s.noStroke();
+        // Arrow 1 (pointing left)
+        s.beginShape();
+        s.vertex(
+          -barWidth / 2 + iconPadding + iconSize / 2,
+          iconY - iconSize / 2
+        ); // Arrow point
+        s.vertex(-barWidth / 2 + iconPadding + iconSize, iconY);
+        s.vertex(
+          -barWidth / 2 + iconPadding + iconSize / 2,
+          iconY + iconSize / 2
+        );
+        s.vertex(
+          -barWidth / 2 + iconPadding + iconSize / 2,
+          iconY + iconSize / 4
+        );
+        s.vertex(-barWidth / 2 + iconPadding, iconY + iconSize / 4);
+        s.vertex(-barWidth / 2 + iconPadding, iconY - iconSize / 4);
+        s.vertex(
+          -barWidth / 2 + iconPadding + iconSize / 2,
+          iconY - iconSize / 4
+        );
+        s.endShape(s.CLOSE);
+
+        // Arrow 2 (pointing right) - conceptual placement
+        const iconOffsetForSecondArrow = iconSize + 5; // Space between arrows
+        s.beginShape();
+        s.vertex(
+          -barWidth / 2 + iconPadding + iconOffsetForSecondArrow + iconSize / 2,
+          iconY
+        ); // Arrow point (right)
+        s.vertex(
+          -barWidth / 2 + iconPadding + iconOffsetForSecondArrow,
+          iconY - iconSize / 2
+        );
+        s.vertex(
+          -barWidth / 2 + iconPadding + iconOffsetForSecondArrow,
+          iconY + iconSize / 2
+        );
+        // ... and so on for the body of the right-pointing arrow, mirrored from the left one.
+        s.endShape(s.CLOSE);
+
+        // --- Text ---
+        const turnText = isPlayerOneKicker
+          ? "PLAYER 1 TURN" // Or "P1 TURN" for brevity
+          : "PLAYER 2 TURN"; // Or "P2 TURN"
+        s.textAlign(s.CENTER, s.CENTER);
+        s.textSize(20); // Adjust for pixel font readability
+
+        s.textStyle(s.NORMAL); // Retro fonts often don't need 'BOLD' explicitly
+
+        // Blinking Text Logic
+        if (isVisible) {
+          s.fill(255, 255, 255); // White text
+          s.text(turnText, 0, 0); // Centered in the bar
+        }
+
+        s.pop();
       }
 
       drawUI(s);
@@ -606,19 +765,22 @@ export default function GameField({
 }) {
   const sketchRef = useRef();
   const p5Instance = useRef(null);
-  const mountedRef = useRef(false);
+  const [isClient, setIsClient] = React.useState(false);
 
   useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isClient) return;
+
     // Make country codes and game mode available to the sketch
     window.playerOneCountry = playerOneCountry;
     window.playerTwoCountry = playerTwoCountry;
     window.isTwoPlayerMode = mode === "two";
 
-    if (mountedRef.current) return;
-    mountedRef.current = true;
-
     let p5;
-    if (typeof window !== "undefined" && !p5Instance.current) {
+    if (!p5Instance.current) {
       import("p5").then((p5Module) => {
         p5 = p5Module.default;
         if (!p5Instance.current && sketchRef.current) {
@@ -628,7 +790,6 @@ export default function GameField({
     }
 
     return () => {
-      mountedRef.current = false;
       if (p5Instance.current) {
         p5Instance.current.remove();
         p5Instance.current = null;
@@ -638,7 +799,23 @@ export default function GameField({
       delete window.playerTwoCountry;
       delete window.isTwoPlayerMode;
     };
-  }, [playerOneCountry, playerTwoCountry, mode]);
+  }, [isClient, playerOneCountry, playerTwoCountry, mode]);
+
+  if (!isClient) {
+    return (
+      <div className="flex items-center justify-center w-full h-full">
+        <div
+          ref={sketchRef}
+          className="relative"
+          style={{
+            width: "800px",
+            height: "800px",
+            margin: "0 auto",
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center w-full h-full">

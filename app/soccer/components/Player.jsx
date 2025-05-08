@@ -76,7 +76,7 @@ export class Player {
     } else if (this.isCharging) {
       const distance = p.dist(this.x, this.y, ball.ballX, ball.ballY);
       if (distance < 30 * this.scaleX) {
-        const power = this.kickPower * 15;
+        const power = this.kickPower * 21;
         ball.kick(power, this.aimAngle);
         this.onShotCallback();
       }

@@ -30,21 +30,22 @@ export class Goalkeeper {
     // Only update position if not in two-player mode
     if (!this.p.isTwoPlayerMode) {
       if (ball.isKicking) {
-        // When ball is being kicked, predict where it will go
-        const predictedX = ball.ballX + ball.ballSpeedX * this.predictionFactor;
-        this.targetX = this.p.lerp(this.x, predictedX, this.reactionSpeed);
+        // AI: Instantly move to predicted ball path for hard saves
+        const predictedX = ball.ballX + ball.ballSpeedX * 10; // Predict further ahead
+        this.x = this.p.constrain(
+          predictedX,
+          this.p.goalX + this.width / 2,
+          this.p.goalX + this.p.goalWidth - this.width / 2
+        );
       } else {
-        // When ball is moving, track it with some prediction
-        const targetX = ball.ballX + ball.ballSpeedX * this.predictionFactor;
-        this.targetX = this.p.lerp(this.x, targetX, this.reactionSpeed);
+        // When ball is moving, track it
+        const targetX = ball.ballX;
+        this.x = this.p.constrain(
+          targetX,
+          this.p.goalX + this.width / 2,
+          this.p.goalX + this.p.goalWidth - this.width / 2
+        );
       }
-
-      // Move towards target position
-      this.x = this.p.constrain(
-        this.targetX,
-        this.p.goalX + this.width / 2,
-        this.p.goalX + this.p.goalWidth - this.width / 2
-      );
 
       // Update movement animation
       this.isMoving = Math.abs(this.x - prevX) > 0.1;
@@ -65,10 +66,7 @@ export class Goalkeeper {
     // Initiate reaction when ball is shot
     if (ball.isKicking && !this.isReacting) {
       this.isReacting = true;
-      // Adjust reaction delay based on difficulty
-      const baseDelay =
-        this.difficulty === "easy" ? 15 : this.difficulty === "medium" ? 10 : 5;
-      this.reactionDelay = this.p.random(baseDelay - 2, baseDelay + 2);
+      this.reactionDelay = 0; // No delay for AI
     }
 
     // Handle reaction after delay
@@ -78,15 +76,7 @@ export class Goalkeeper {
         // Determine dive direction based on ball position
         const ballDirection = ball.ballX - this.x;
         this.diveDirection = ballDirection > 0 ? 1 : -1;
-
-        // Adjust dive timing based on difficulty
-        const diveSpeed =
-          this.difficulty === "easy"
-            ? 0.1
-            : this.difficulty === "medium"
-            ? 0.15
-            : 0.2;
-        this.x += this.diveDirection * this.speed * diveSpeed;
+        // No need to move here, already moved above
       }
     }
 
@@ -98,62 +88,135 @@ export class Goalkeeper {
 
     // Improved ball saving logic
     if (ball.isKicking) {
-      // Calculate the goalkeeper's collision area based on dive state
-      const keeperWidth = this.isReacting ? 40 * this.size : 20 * this.size;
-      const keeperHeight = this.isReacting ? 40 * this.size : 30 * this.size;
+      // --- AI or Two-Player Mode: Use large area and hands for saves ---
+      let keeperWidth,
+        keeperHeight,
+        handReachX = 0,
+        handReachY = 0;
+      let collisionX = this.x,
+        collisionY = this.y;
+      let checkHand = false;
+      let handX = this.x,
+        handY = this.y;
+      let handRadius = 30 * this.size;
 
-      // Calculate hand reach based on dive direction
-      let handReachX = 0;
-      let handReachY = 0;
-
-      if (this.isReacting) {
-        if (this.diveDirection === -1) {
-          handReachX = -30 * this.size;
-        } else if (this.diveDirection === 1) {
-          handReachX = 30 * this.size;
+      if (!this.p.isTwoPlayerMode) {
+        // AI: Large area and hand reach
+        keeperWidth = this.isReacting ? 80 * this.size : 40 * this.size;
+        keeperHeight = this.isReacting ? 80 * this.size : 40 * this.size;
+        if (this.isReacting) {
+          if (this.diveDirection === -1) handReachX = -40 * this.size;
+          else if (this.diveDirection === 1) handReachX = 40 * this.size;
+          handReachY = -30 * this.size;
         }
-        handReachY = -20 * this.size; // Always reach up when diving
+        collisionX = this.x + handReachX;
+        collisionY = this.y + handReachY;
+      } else {
+        // Two-player: Use larger area when diving, and check hands
+        keeperWidth = this.isReacting ? 80 * this.size : 40 * this.size;
+        keeperHeight = this.isReacting ? 80 * this.size : 40 * this.size;
+        // Always use current position for body collision
+        collisionX = this.x;
+        collisionY = this.y;
+        // If GoalkeeperControls sets handX/handY, use those
+        if (typeof this.handX === "number" && typeof this.handY === "number") {
+          handX = this.handX;
+          handY = this.handY;
+          checkHand = true;
+        }
       }
 
-      // Check collision with expanded area including hand reach
-      const collisionX = this.x + handReachX;
-      const collisionY = this.y + handReachY;
-
+      // --- Body collision (always check at current position) ---
       if (
         ball.ballX > collisionX - keeperWidth / 2 &&
         ball.ballX < collisionX + keeperWidth / 2 &&
         ball.ballY > collisionY - keeperHeight / 2 &&
         ball.ballY < collisionY + keeperHeight / 2
       ) {
-        // Calculate reflection vector with more realistic bounce
+        // Deflect as usual
         const collisionNormal = this.p
           .createVector(ball.ballX - collisionX, ball.ballY - collisionY)
           .normalize();
         const dot =
           ball.ballSpeedX * collisionNormal.x +
           ball.ballSpeedY * collisionNormal.y;
-
-        // More realistic bounce with energy loss
-        const restitution = 0.6;
+        const restitution = 0.7;
         ball.ballSpeedX =
           (ball.ballSpeedX - 2 * dot * collisionNormal.x) * restitution;
         ball.ballSpeedY =
           (ball.ballSpeedY - 2 * dot * collisionNormal.y) * restitution;
-
-        // Calculate spin with reduced magnitude
+        const angleJitter = this.p.radians(this.p.random(-10, 10));
+        const speed = Math.sqrt(
+          ball.ballSpeedX * ball.ballSpeedX + ball.ballSpeedY * ball.ballSpeedY
+        );
+        const newAngle =
+          Math.atan2(ball.ballSpeedY, ball.ballSpeedX) + angleJitter;
+        ball.ballSpeedX = speed * Math.cos(newAngle);
+        ball.ballSpeedY = speed * Math.sin(newAngle);
         const relativeVelX = ball.ballSpeedX - (this.x - prevX);
         const relativeVelY = ball.ballSpeedY;
         ball.spin = this.p.constrain(
           (relativeVelX * collisionNormal.y -
             relativeVelY * collisionNormal.x) *
-            0.02,
-          -0.5,
-          0.5
+            0.03,
+          -0.7,
+          0.7
         );
-
-        // Mark as saved
+        const ballRadius = 10 * this.scaleX;
+        ball.ballX =
+          collisionX + collisionNormal.x * (keeperWidth / 2 + ballRadius + 2);
+        ball.ballY =
+          collisionY + collisionNormal.y * (keeperHeight / 2 + ballRadius + 2);
         ball.wasShotByPlayer = false;
-        this.isReacting = false; // Reset reaction state after save
+        ball.wasSaved = true;
+        this.isReacting = false;
+        return;
+      }
+
+      // --- Hand collision (two-player mode only) ---
+      if (checkHand) {
+        const distToHand = this.p.dist(ball.ballX, ball.ballY, handX, handY);
+        if (distToHand < handRadius) {
+          // Deflect as if hit by hand
+          const collisionNormal = this.p
+            .createVector(ball.ballX - handX, ball.ballY - handY)
+            .normalize();
+          const dot =
+            ball.ballSpeedX * collisionNormal.x +
+            ball.ballSpeedY * collisionNormal.y;
+          const restitution = 0.7;
+          ball.ballSpeedX =
+            (ball.ballSpeedX - 2 * dot * collisionNormal.x) * restitution;
+          ball.ballSpeedY =
+            (ball.ballSpeedY - 2 * dot * collisionNormal.y) * restitution;
+          const angleJitter = this.p.radians(this.p.random(-10, 10));
+          const speed = Math.sqrt(
+            ball.ballSpeedX * ball.ballSpeedX +
+              ball.ballSpeedY * ball.ballSpeedY
+          );
+          const newAngle =
+            Math.atan2(ball.ballSpeedY, ball.ballSpeedX) + angleJitter;
+          ball.ballSpeedX = speed * Math.cos(newAngle);
+          ball.ballSpeedY = speed * Math.sin(newAngle);
+          const relativeVelX = ball.ballSpeedX - (this.x - prevX);
+          const relativeVelY = ball.ballSpeedY;
+          ball.spin = this.p.constrain(
+            (relativeVelX * collisionNormal.y -
+              relativeVelY * collisionNormal.x) *
+              0.03,
+            -0.7,
+            0.7
+          );
+          const ballRadius = 10 * this.scaleX;
+          ball.ballX =
+            handX + collisionNormal.x * (handRadius + ballRadius + 2);
+          ball.ballY =
+            handY + collisionNormal.y * (handRadius + ballRadius + 2);
+          ball.wasShotByPlayer = false;
+          ball.wasSaved = true;
+          this.isReacting = false;
+          return;
+        }
       }
     }
   }

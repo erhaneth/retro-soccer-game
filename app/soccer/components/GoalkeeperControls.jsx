@@ -34,11 +34,28 @@ export class GoalkeeperControls {
       case 75: // 'K' key - dive down
         this.startDive("down");
         break;
+      case 65: // 'A' key - move left
+      case 37: // Left arrow
+        this.leftKey = true;
+        break;
+      case 68: // 'D' key - move right
+      case 39: // Right arrow
+        this.rightKey = true;
+        break;
     }
   }
 
   handleKeyRelease(keyCode) {
-    // No need to handle key releases for diving
+    switch (keyCode) {
+      case 65: // 'A' key - move left
+      case 37: // Left arrow
+        this.leftKey = false;
+        break;
+      case 68: // 'D' key - move right
+      case 39: // Right arrow
+        this.rightKey = false;
+        break;
+    }
   }
 
   startDive(direction) {
@@ -53,6 +70,20 @@ export class GoalkeeperControls {
   update(goalkeeper, ball) {
     this.goalkeeper = goalkeeper;
 
+    // Allow walking left/right when not diving
+    if (!this.isDiving) {
+      if (this.leftKey) {
+        goalkeeper.x -= this.speed;
+      }
+      if (this.rightKey) {
+        goalkeeper.x += this.speed;
+      }
+      // Keep within bounds
+      goalkeeper.x = this.p.constrain(goalkeeper.x, 0, this.p.width);
+      goalkeeper.handX = goalkeeper.x;
+      goalkeeper.handY = goalkeeper.y;
+    }
+
     if (this.isDiving) {
       const currentTime = this.p.millis();
       const diveProgress =
@@ -65,8 +96,11 @@ export class GoalkeeperControls {
           // 200ms recovery time
           this.isDiving = false;
           this.diveDirection = null;
-          goalkeeper.x = this.originalX;
-          goalkeeper.y = this.originalY;
+          // Do NOT reset to originalX/originalY; stay at new position
+          // goalkeeper.x = this.originalX;
+          // goalkeeper.y = this.originalY;
+          goalkeeper.handX = goalkeeper.x;
+          goalkeeper.handY = goalkeeper.y;
         }
         return;
       }
@@ -90,23 +124,28 @@ export class GoalkeeperControls {
       const handReachProgress = Math.sin(diveProgress * Math.PI);
       const currentHandReach = this.handReach * handReachProgress;
 
+      // Always set handX and handY for all directions
       switch (this.diveDirection) {
         case "left":
           goalkeeper.x = this.originalX - adjustedDiveDistance;
+          goalkeeper.y = this.originalY;
           goalkeeper.handX = goalkeeper.x - currentHandReach;
           goalkeeper.handY = goalkeeper.y;
           break;
         case "right":
           goalkeeper.x = this.originalX + adjustedDiveDistance;
+          goalkeeper.y = this.originalY;
           goalkeeper.handX = goalkeeper.x + currentHandReach;
           goalkeeper.handY = goalkeeper.y;
           break;
         case "up":
+          goalkeeper.x = this.originalX;
           goalkeeper.y = this.originalY - adjustedDiveDistance;
           goalkeeper.handX = goalkeeper.x;
           goalkeeper.handY = goalkeeper.y - currentHandReach;
           break;
         case "down":
+          goalkeeper.x = this.originalX;
           goalkeeper.y = this.originalY + adjustedDiveDistance;
           goalkeeper.handX = goalkeeper.x;
           goalkeeper.handY = goalkeeper.y + currentHandReach;
@@ -116,6 +155,12 @@ export class GoalkeeperControls {
       // Keep goalkeeper within bounds
       goalkeeper.x = this.p.constrain(goalkeeper.x, 0, this.p.width);
       goalkeeper.y = this.p.constrain(goalkeeper.y, 0, this.p.height / 2);
+      goalkeeper.handX = this.p.constrain(goalkeeper.handX, 0, this.p.width);
+      goalkeeper.handY = this.p.constrain(
+        goalkeeper.handY,
+        0,
+        this.p.height / 2
+      );
 
       // Check if ball is within hand reach
       if (ball) {
@@ -130,8 +175,13 @@ export class GoalkeeperControls {
           ball.ballSpeedY *= 0.5;
           ball.ballX = goalkeeper.handX;
           ball.ballY = goalkeeper.handY;
+          ball.wasSaved = true; // Set the wasSaved flag
         }
       }
+    } else {
+      // Not diving: hands at body
+      goalkeeper.handX = goalkeeper.x;
+      goalkeeper.handY = goalkeeper.y;
     }
   }
 }

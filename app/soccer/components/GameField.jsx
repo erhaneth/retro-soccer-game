@@ -126,12 +126,13 @@ const sketch = (s) => {
         goalkeeperControls.handleKeyPress(s.keyCode);
         return;
       }
+    }
 
-      if (s.keyCode === 32) {
-        if (player && !player.isCharging) {
-          player.isCharging = true;
-          player.kickPower = 0;
-        }
+    // Handle space key for both modes
+    if (s.keyCode === 32) {
+      if (player && !player.isCharging) {
+        player.isCharging = true;
+        player.kickPower = 0;
       }
     }
   };
@@ -147,13 +148,14 @@ const sketch = (s) => {
         goalkeeperControls.handleKeyRelease(s.keyCode);
         return;
       }
+    }
 
-      if (s.keyCode === 32) {
-        if (player && player.isCharging) {
-          player.isCharging = false;
-          if (ball) {
-            ball.kick(player.kickPower, player.aimAngle);
-          }
+    // Handle space key for both modes
+    if (s.keyCode === 32) {
+      if (player && player.isCharging) {
+        player.isCharging = false;
+        if (ball) {
+          ball.kick(player.kickPower, player.aimAngle);
         }
       }
     }
@@ -186,7 +188,19 @@ const sketch = (s) => {
         ball.update();
         ball.draw(player.x, player.y);
 
-        if (ball.checkGoal()) {
+        // Handle save as a miss first
+        if (ball.wasSaved) {
+          shotsTaken += 1;
+          missMessageTimer = 60;
+          // Reset ball to penalty spot
+          const penaltySpotX = s.width / 2;
+          const penaltySpotY = penaltyMarkY;
+          ball.resetToPenalty(penaltySpotX, penaltySpotY);
+          player.x = penaltySpotX;
+          player.y = penaltySpotY + 50;
+          ball.wasSaved = false;
+        } else if (ball.checkGoal()) {
+          // Only check for goal if there was no save
           if (isPlayerOneKicker) {
             playerOneScore += 1;
           } else {

@@ -247,17 +247,39 @@ export class Ball {
   draw() {
     const p = this.p;
 
-    // Draw the ball
-    p.fill(255);
-    p.circle(this.ballX, this.ballY, 20 * this.scaleX);
-    p.fill(0);
-    for (let i = 0; i < 5; i++) {
-      p.circle(
-        this.ballX + p.cos(p.radians(i * 72)) * 5 * this.scaleX,
-        this.ballY + p.sin(p.radians(i * 72)) * 5 * this.scaleX,
-        4 * this.scaleX
-      );
+    // Draw shadow
+    p.push();
+    p.noStroke();
+    p.fill(0, 0, 0, 80);
+    p.ellipse(
+      this.ballX,
+      this.ballY + 10 * this.scaleX,
+      24 * this.scaleX,
+      8 * this.scaleX
+    );
+    p.pop();
+
+    // Draw the ball with a simple radial gradient for 3D effect
+    p.push();
+    for (let r = 10 * this.scaleX; r > 0; r -= 1) {
+      let c = p.lerpColor(p.color(255), p.color(200), r / (10 * this.scaleX));
+      p.fill(c);
+      p.noStroke();
+      p.circle(this.ballX, this.ballY, r * 2);
     }
+    p.pop();
+
+    // Draw black pentagons (classic pattern)
+    p.push();
+    p.fill(0);
+    p.noStroke();
+    for (let i = 0; i < 5; i++) {
+      const angle = p.radians(i * 72 - 18 + ((this.spin * p.frameCount) % 360));
+      const x = this.ballX + Math.cos(angle) * 5 * this.scaleX;
+      const y = this.ballY + Math.sin(angle) * 5 * this.scaleX;
+      p.circle(x, y, 4 * this.scaleX);
+    }
+    p.pop();
 
     // Draw Curvature Indicator if the ball is in motion and spin is present
     if (this.isKicking && Math.abs(this.spin) > 0) {
@@ -266,47 +288,6 @@ export class Ball {
       p.rotate(p.radians(this.spin * 90));
       p.strokeWeight(2);
       p.line(0, 0, 20 * this.scaleX * Math.abs(this.spin), 0);
-      p.pop();
-    }
-
-    // Draw Aiming Line if the player is near and the ball is not moving
-    const distanceToPlayer = p.dist(
-      this.ballX,
-      this.ballY,
-      this.playerX,
-      this.playerY
-    );
-    if (distanceToPlayer < this.kickDistance && !this.isKicking) {
-      p.push();
-      p.translate(this.ballX, this.ballY);
-      p.rotate(p.radians(this.aimAngle));
-
-      const lineLength = 50 * this.scaleX;
-      for (let i = 0; i < lineLength; i++) {
-        const alpha = p.map(i, 0, lineLength, 255, 50);
-        p.stroke(255, 0, 0, alpha);
-        p.strokeWeight(2);
-        p.line(i, -1, i, 1);
-      }
-
-      const pulse = p.sin(p.frameCount * 0.1) * 0.5 + 1.5;
-      p.noStroke();
-      for (let i = 0; i < 5; i++) {
-        const dotX = 10 * i * this.scaleX;
-        const dotSize = 3 * this.scaleX * pulse;
-        p.fill(255, 0, 0, 150);
-        p.circle(dotX, 0, dotSize);
-      }
-
-      const power = this.p.kickPower || 0;
-      const powerBarLength = 50 * this.scaleX * power;
-      for (let i = 0; i < powerBarLength; i++) {
-        const alpha = p.map(i, 0, powerBarLength, 200, 50);
-        p.stroke(255, 0, 0, alpha);
-        p.strokeWeight(4);
-        p.line(i, -5 * this.scaleX, i, 5 * this.scaleX);
-      }
-
       p.pop();
     }
   }

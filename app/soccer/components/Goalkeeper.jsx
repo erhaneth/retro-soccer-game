@@ -17,7 +17,9 @@ export class Goalkeeper {
     this.reactionSpeed = 0.1; // Base reaction speed
     this.predictionFactor = 0.3; // How much to predict ball movement
     this.width = 20 * scaleX; // Goalkeeper width for collision detection
-
+    this.diveAccuracy =
+      difficulty === "easy" ? 0.5 : difficulty === "medium" ? 0.7 : 0.9; // chance to pick correct side
+    this.predictionNoise = 20 * scaleX; // ±px error in prediction
     this.isMoving = false;
     this.legFrame = 0;
     this.frameSpeed = 0.03;
@@ -30,18 +32,30 @@ export class Goalkeeper {
     // Only update position if not in two-player mode
     if (!this.p.isTwoPlayerMode) {
       if (ball.isKicking) {
-        // AI: Instantly move to predicted ball path for hard saves
-        const predictedX = ball.ballX + ball.ballSpeedX * 10; // Predict further ahead
+        // AI: Add randomness to movement and prediction
+        const predictionError = this.p.random(
+          -this.predictionNoise,
+          this.predictionNoise
+        );
+        const predictedX = ball.ballX + ball.ballSpeedX * 10 + predictionError;
+
+        // Add some delay in movement
+        const moveSpeed = this.p.random(0.8, 1.2) * this.reactionSpeed;
+        this.x += (predictedX - this.x) * moveSpeed;
+
         this.x = this.p.constrain(
-          predictedX,
+          this.x,
           this.p.goalX + this.width / 2,
           this.p.goalX + this.p.goalWidth - this.width / 2
         );
       } else {
-        // When ball is moving, track it
-        const targetX = ball.ballX;
+        // When ball is moving, track it with some delay and randomness
+        const targetX = ball.ballX + this.p.random(-5, 5);
+        const moveSpeed = this.p.random(0.8, 1.2) * this.reactionSpeed;
+        this.x += (targetX - this.x) * moveSpeed;
+
         this.x = this.p.constrain(
-          targetX,
+          this.x,
           this.p.goalX + this.width / 2,
           this.p.goalX + this.p.goalWidth - this.width / 2
         );
@@ -66,7 +80,44 @@ export class Goalkeeper {
     // Initiate reaction when ball is shot
     if (ball.isKicking && !this.isReacting) {
       this.isReacting = true;
-      this.reactionDelay = 0; // No delay for AI
+      this.reactionDelay = this.p.random(2, 5); // Add random delay
+
+      // true side: +1 → right, –1 → left
+      const trueDir = ball.ballX - this.x >= 0 ? 1 : -1;
+
+      // decide dive: correct, wrong, or no dive with more randomness
+      const rnd = this.p.random();
+      if (rnd < this.diveAccuracy * 0.8) {
+        // Reduce accuracy slightly
+        this.diveDirection = trueDir;
+      } else if (
+        rnd <
+        this.diveAccuracy * 0.8 + (1 - this.diveAccuracy * 0.8) * 0.6
+      ) {
+        this.diveDirection = -trueDir; // guess wrong
+      } else {
+        this.diveDirection = 0; // stay center
+      }
+
+      // predict intercept X with more randomness
+      const timeToKeeper = (this.y - ball.ballY) / (ball.ballSpeedY || 1);
+      let predictedX = ball.ballX + ball.ballSpeedX * timeToKeeper;
+
+      // add more noise to prediction
+      predictedX += this.p.random(
+        -this.predictionNoise * 1.5,
+        this.predictionNoise * 1.5
+      );
+
+      // set dive target
+      this.targetX = this.diveDirection === 0 ? this.p.width / 2 : predictedX;
+
+      // constrain inside goal
+      this.targetX = this.p.constrain(
+        this.targetX,
+        this.p.goalX + this.width / 2,
+        this.p.goalX + this.p.goalWidth - this.width / 2
+      );
     }
 
     // Handle reaction after delay

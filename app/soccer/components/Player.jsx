@@ -15,6 +15,10 @@ export class Player {
     this.kickPower = 0;
     this.maxPower = 1;
     this.chargeSpeed = 0.02;
+    this.lockedAimAngle = null;
+    this.powerSweepAngle = 0;
+    this.powerSweepSpeed = 0.01;
+    this.powerSweepDirection = 1;
 
     // Animation state
     this.isMoving = false;
@@ -22,9 +26,6 @@ export class Player {
     this.frameSpeed = 0.1;
     this.moveDirection = { x: 0, y: 0 };
     this.onShotCallback = onShotCallback;
-
-    // Improved aiming angle control
-    this.aimSpeed = 2; // Base speed for aiming
   }
 
   update(ball, goalkeeper) {
@@ -53,38 +54,30 @@ export class Player {
       this.legFrame = 0;
     }
 
-    // Improved aiming angle control
-    const aimAcceleration = 0.1; // How quickly the aiming speed increases
-    const maxAimSpeed = 5; // Maximum aiming speed
-
-    if (p.keyIsDown(p.LEFT_ARROW)) {
-      this.aimSpeed = p.min(this.aimSpeed + aimAcceleration, maxAimSpeed);
-      this.aimAngle -= this.aimSpeed;
-    } else if (p.keyIsDown(p.RIGHT_ARROW)) {
-      this.aimSpeed = p.min(this.aimSpeed + aimAcceleration, maxAimSpeed);
-      this.aimAngle += this.aimSpeed;
-    } else {
-      this.aimSpeed = 2; // Reset to base speed when not pressing
+    this.powerSweepAngle += this.powerSweepSpeed * this.powerSweepDirection;
+    if (this.powerSweepAngle >= 1 || this.powerSweepAngle <= 0) {
+      this.powerSweepDirection *= -1;
     }
 
-    // Keep angle between -90 and 90 degrees
-    this.aimAngle = p.constrain(this.aimAngle, -180, 0);
-
     if (p.keyIsDown(32)) {
-      this.isCharging = true;
-      this.kickPower = p.min(this.kickPower + this.chargeSpeed, this.maxPower);
+      if (!this.isCharging) {
+        this.lockedAimAngle = this.aimAngle;
+        this.isCharging = true;
+        this.kickPower = 0;
+      }
+      this.kickPower = this.powerSweepAngle;
     } else if (this.isCharging) {
       const distance = p.dist(this.x, this.y, ball.ballX, ball.ballY);
       if (distance < 30 * this.scaleX) {
         const power = this.kickPower * 21;
-        ball.kick(power, this.aimAngle);
+        ball.kick(power, this.lockedAimAngle);
         this.onShotCallback();
       }
       this.isCharging = false;
       this.kickPower = 0;
+      this.lockedAimAngle = null;
     }
 
-    // Update ball's reference to player position for aiming line
     ball.playerX = this.x;
     ball.playerY = this.y;
     ball.aimAngle = this.aimAngle;

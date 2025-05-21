@@ -25,8 +25,9 @@ const sketch = (s) => {
   let goalMessageTimer = 0;
   let netColorChangeTimer = 0;
   let missMessageTimer = 0;
-  let difficulty = "hard";
+  let difficulty = "easy";
   let adImage;
+  let ctdLogo;
   let isTwoPlayerMode = false;
   let isPlayerOneKicker = true;
 
@@ -56,10 +57,13 @@ const sketch = (s) => {
   const goalAreaWidth = 20 * pixelsPerYard;
   const goalAreaHeight = 6 * pixelsPerYard;
   const centerCircleRadius = 6 * pixelsPerYard;
-  const topOffset = 40;
+  const topOffset = 60;
+  const fieldYOffset = 60; // Push the field down to make space for ads
+  const bannerHeight = 60;
 
   s.preload = () => {
-    adImage = s.loadImage("/icon-192x192.png");
+    adImage = s.loadImage("/ctdlabs.png");
+    ctdLogo = s.loadImage("/ctd.png");
     // Load flag images
     if (window.playerOneCountry) {
       playerOneFlag = s.loadImage(
@@ -107,7 +111,10 @@ const sketch = (s) => {
       isPlayerOneKicker ? 1 : 2
     );
 
+    // Place goalkeeper inside the goal (not above the ads)
+    const keeperY = fieldYOffset + 45; // 30px below the top of the goal
     goalkeeper = new Goalkeeper(s, 1, 1, difficulty, isPlayerOneKicker ? 2 : 1);
+    goalkeeper.y = keeperY;
     ball = new Ball(s, 1, 1, player.x, player.y, player.aimAngle, goalkeeper);
 
     if (isTwoPlayerMode) {
@@ -116,7 +123,7 @@ const sketch = (s) => {
 
     // Reset ball to penalty spot
     const penaltySpotX = s.width / 2;
-    const penaltySpotY = penaltyMarkY;
+    const penaltySpotY = penaltyMarkY + fieldYOffset;
     ball.resetToPenalty(penaltySpotX, penaltySpotY);
     player.x = penaltySpotX;
     player.y = penaltySpotY + 50;
@@ -261,7 +268,7 @@ const sketch = (s) => {
           missMessageTimer = 60;
           // Reset ball to penalty spot
           const penaltySpotX = s.width / 2;
-          const penaltySpotY = penaltyMarkY;
+          const penaltySpotY = penaltyMarkY + fieldYOffset;
           ball.resetToPenalty(penaltySpotX, penaltySpotY);
           player.x = penaltySpotX;
           player.y = penaltySpotY + 50;
@@ -295,7 +302,7 @@ const sketch = (s) => {
 
         if (!ball.isKicking && ball.wasShotByPlayer) {
           const penaltySpotX = s.width / 2;
-          const penaltySpotY = penaltyMarkY;
+          const penaltySpotY = penaltyMarkY + fieldYOffset;
           ball.resetToPenalty(penaltySpotX, penaltySpotY);
           player.x = penaltySpotX;
           player.y = penaltySpotY + 50;
@@ -448,24 +455,60 @@ const sketch = (s) => {
   }
 
   function drawAds(s) {
-    if (adImage) {
-      const adWidth = 80; // Reduced ad size to make space
-      const adHeight = 32;
-      const numAds = 8;
-      const spacing = 1;
-      const totalWidth = adWidth * numAds + spacing * (numAds - 1);
-      const startX = (s.width - totalWidth) / 2;
-      const adY = 5;
+    if (!adImage || !ctdLogo) return;
 
-      s.fill(255);
-      s.noStroke();
-      s.rect(0, adY, s.width, adHeight);
+    // Draw full-width white banner background
+    s.push();
+    s.noStroke();
+    s.fill(255);
+    s.rect(0, 0, s.width, bannerHeight);
+    s.pop();
 
-      for (let i = 0; i < numAds; i++) {
-        const adX = startX + i * (adWidth + spacing);
-        s.image(adImage, adX, adY, adWidth, adHeight);
-      }
+    // --- Left: Player flag and name ---
+    const flagWidth = 36;
+    const flagHeight = 24;
+    const leftPadding = 20;
+    const textPadding = 10;
+    let flagImg = playerOneFlag;
+    let playerName = `Player 1: ${playerOneScore}`;
+    if (!isPlayerOneKicker && isTwoPlayerMode) {
+      flagImg = playerTwoFlag;
+      playerName = `Player 2: ${playerTwoScore}`;
     }
+    if (flagImg) {
+      s.image(
+        flagImg,
+        leftPadding,
+        (bannerHeight - flagHeight) / 2,
+        flagWidth,
+        flagHeight
+      );
+    }
+    s.fill(30);
+    s.textSize(22);
+    s.textAlign(s.LEFT, s.CENTER);
+    s.text(playerName, leftPadding + flagWidth + textPadding, bannerHeight / 2);
+
+    // --- Center: Ads ---
+    const logoCount = 4;
+    const logoW = 60;
+    const logoH = 30;
+    const totalLogoWidth = logoCount * logoW;
+    const logoSpacing = 20;
+    const totalSpacing = (logoCount - 1) * logoSpacing;
+    const centerStartX = s.width / 2 - (totalLogoWidth + totalSpacing) / 2;
+    for (let i = 0; i < logoCount; i++) {
+      const img = i % 2 === 0 ? ctdLogo : adImage;
+      const imgX = centerStartX + i * (logoW + logoSpacing);
+      const imgY = (bannerHeight - logoH) / 2;
+      s.image(img, imgX, imgY, logoW, logoH);
+    }
+
+    // --- Right: Shots tracker ---
+    s.textAlign(s.RIGHT, s.CENTER);
+    s.textSize(22);
+    const shotsText = `Shots: ${shotsTaken}/${maxShots}`;
+    s.text(shotsText, s.width - leftPadding, bannerHeight / 2);
   }
 
   function drawField(s) {
@@ -473,14 +516,14 @@ const sketch = (s) => {
     for (let y = topOffset; y < s.height; y += stripeHeight * 2) {
       s.fill("#0aa116");
       s.noStroke();
-      s.rect(0, y, s.width, stripeHeight);
+      s.rect(0, y + fieldYOffset, s.width, stripeHeight);
       s.fill("#0ca618");
-      s.rect(0, y + stripeHeight, s.width, stripeHeight);
+      s.rect(0, y + stripeHeight + fieldYOffset, s.width, stripeHeight);
     }
 
     s.fill(255);
     s.noStroke();
-    s.rect(0, 0, s.width, 4);
+    s.rect(0, fieldYOffset, s.width, 4);
     s.rect(0, s.height - 4, s.width, 4);
 
     s.noFill();
@@ -498,14 +541,14 @@ const sketch = (s) => {
 
   function drawPenaltyArea(s) {
     const boxX = s.width / 2 - penaltyAreaWidth / 2;
-    const boxY = 0;
+    const boxY = fieldYOffset;
     s.stroke(255);
     s.strokeWeight(2);
     s.noFill();
     s.rect(boxX, boxY, penaltyAreaWidth, penaltyAreaHeight);
 
     const penaltySpotX = s.width / 2;
-    const penaltySpotY = penaltyMarkY;
+    const penaltySpotY = penaltyMarkY + fieldYOffset;
     s.fill(255);
     s.noStroke();
     s.circle(penaltySpotX, penaltySpotY, 8);
@@ -525,7 +568,7 @@ const sketch = (s) => {
     );
 
     const goalAreaX = s.width / 2 - goalAreaWidth / 2;
-    const goalAreaY = 0;
+    const goalAreaY = fieldYOffset;
     s.stroke(255);
     s.strokeWeight(2);
     s.noFill();
@@ -534,11 +577,11 @@ const sketch = (s) => {
 
   function drawGoal(s, netColorTimer) {
     const goalX = s.width / 2 - goalWidth / 2;
-    const goalY = 0;
+    const goalY = fieldYOffset;
 
     s.fill(255);
     s.noStroke();
-    s.rect(goalX, goalY, goalWidth, 8);
+    s.rect(goalX, goalY, goalWidth, 8); // goal line
     s.rect(goalX, goalY, 8, goalHeight);
     s.rect(goalX + goalWidth - 8, goalY, 8, goalHeight);
 
@@ -600,40 +643,192 @@ const sketch = (s) => {
 
     // Player One Score and Flag
     if (playerOneFlag) {
-      s.image(playerOneFlag, scoreX, scoreY, flagWidth, flagHeight);
+      // s.image(playerOneFlag, scoreX, scoreY, flagWidth, flagHeight);
     }
-    s.text(
-      `Player 1: ${playerOneScore}`,
-      scoreX + flagWidth + spacing,
-      scoreY + flagHeight / 2 - 8
-    );
+    // s.text(
+    //   `Player 1: ${playerOneScore}`,
+    //   scoreX + flagWidth + spacing,
+    //   scoreY + flagHeight / 2 - 8
+    // );
 
     // Player Two Score and Flag (only if two player mode)
     if (isTwoPlayerMode) {
-      if (playerTwoFlag) {
-        s.image(
-          playerTwoFlag,
-          scoreX,
-          scoreY + flagHeight + spacing,
-          flagWidth,
-          flagHeight
-        );
-      }
-      s.text(
-        `Player 2: ${playerTwoScore}`,
-        scoreX + flagWidth + spacing,
-        scoreY + flagHeight + spacing + flagHeight / 2 - 8
-      );
+      // if (playerTwoFlag) {
+      //   s.image(
+      //     playerTwoFlag,
+      //     scoreX,
+      //     scoreY + flagHeight + spacing,
+      //     flagWidth,
+      //     flagHeight
+      //   );
+      // }
+      // s.text(
+      //   `Player 2: ${playerTwoScore}`,
+      //   scoreX + flagWidth + spacing,
+      //   scoreY + flagHeight + spacing + flagHeight / 2 - 8
+      // );
     }
 
     // Rest of the UI
-    s.text(
-      `Shots: ${shotsTaken}/${maxShots}`,
-      10,
-      scoreY + (flagHeight + spacing) * (isTwoPlayerMode ? 2 : 1)
-    );
-    s.text(`Aim Angle: ${Math.round(player.aimAngle)}°`, 10, s.height - 60);
-    s.text(`Power: ${Math.round(player.kickPower * 100)}%`, 10, s.height - 40);
+    // s.text(
+    //   `Shots: ${shotsTaken}/${maxShots}`,
+    //   10,
+    //   scoreY + (flagHeight + spacing) * (isTwoPlayerMode ? 2 : 1)
+    // );
+
+    // --- PENALTY KICK CONTROLS ---
+    if (!ball.isKicking) {
+      // Calculate control panel position and dimensions
+      const controlPanelWidth = 300;
+      const controlPanelHeight = 80;
+      const controlPanelX = s.width / 2 - controlPanelWidth / 2;
+      const controlPanelY = s.height - controlPanelHeight - 20;
+
+      // Draw control panel background
+      s.push();
+      s.noStroke();
+      s.fill(30, 30, 30, 220);
+      s.rect(
+        controlPanelX,
+        controlPanelY,
+        controlPanelWidth,
+        controlPanelHeight,
+        9
+      );
+
+      // Draw panel border
+      s.stroke(255, 200, 0);
+      s.strokeWeight(3);
+      s.noFill();
+      s.rect(
+        controlPanelX,
+        controlPanelY,
+        controlPanelWidth,
+        controlPanelHeight,
+        9
+      );
+
+      // --- POWER BAR ---
+      const powerBarWidth = 200;
+      const powerBarHeight = 15;
+      const powerBarX = s.width / 2 - powerBarWidth / 2;
+      const powerBarY = controlPanelY + 15;
+
+      // Power bar background
+      s.noStroke();
+      s.fill(50, 50, 50);
+      s.rect(powerBarX, powerBarY, powerBarWidth, powerBarHeight, 7);
+
+      // Draw power segments
+      const segmentCount = 10;
+      const segmentWidth = powerBarWidth / segmentCount;
+      s.stroke(255, 255, 255, 30);
+      s.strokeWeight(1);
+      for (let i = 1; i < segmentCount; i++) {
+        s.line(
+          powerBarX + i * segmentWidth,
+          powerBarY,
+          powerBarX + i * segmentWidth,
+          powerBarY + powerBarHeight
+        );
+      }
+
+      // Power bar fill with sweeping motion
+      if (player.isCharging) {
+        // Draw the current power level
+        s.fill(255, 0, 0);
+        s.rect(
+          powerBarX,
+          powerBarY,
+          player.kickPower * powerBarWidth,
+          powerBarHeight,
+          7
+        );
+
+        // Draw the sweeping indicator
+        const sweepX = powerBarX + player.powerSweepAngle * powerBarWidth;
+        s.fill(255, 255, 255, 150);
+        s.triangle(
+          sweepX - 5,
+          powerBarY - 8,
+          sweepX + 5,
+          powerBarY - 8,
+          sweepX,
+          powerBarY
+        );
+      }
+
+      // --- AIMING METER ---
+      const meterWidth = 200;
+      const meterHeight = 18;
+      const meterX = s.width / 2 - meterWidth / 2;
+      const meterY = controlPanelY + 45;
+
+      // Meter background
+      s.noStroke();
+      s.fill(50, 50, 50);
+      s.rect(meterX, meterY, meterWidth, meterHeight, 9);
+
+      // Draw center line
+      s.stroke(255, 255, 255, 80);
+      s.strokeWeight(1);
+      s.line(
+        meterX + meterWidth / 2,
+        meterY,
+        meterX + meterWidth / 2,
+        meterY + meterHeight
+      );
+
+      // Auto-sweeping aim dot
+      const minAngle = -180;
+      const maxAngle = 0;
+      const sweepSpeed = 0.02;
+      const sweepRange = maxAngle - minAngle;
+      const currentSweep = (Math.sin(s.frameCount * sweepSpeed) + 1) / 2; // 0 to 1
+      const currentAngle = minAngle + sweepRange * currentSweep;
+
+      // Only update the aim angle if not charging (first press of space)
+      if (!player.isCharging) {
+        player.aimAngle = currentAngle;
+      }
+
+      // Draw aim dot (always show current sweep position)
+      const markerNorm = (currentAngle - minAngle) / sweepRange;
+      const markerX = meterX + markerNorm * meterWidth;
+
+      // Flash the dot when ready to kick
+      const flashRate = 0.1;
+      const isFlashing = Math.sin(s.frameCount * flashRate) > 0;
+      s.noStroke();
+      s.fill(255, 80, 0, isFlashing ? 255 : 180);
+      s.ellipse(markerX, meterY + meterHeight / 2, 18, 18);
+
+      // Draw text labels
+      s.textAlign(s.LEFT, s.CENTER);
+      s.textSize(12);
+      s.fill(255);
+      s.text("LEFT", meterX - 38, meterY + meterHeight / 2);
+      s.textAlign(s.RIGHT, s.CENTER);
+      s.text("RIGHT", meterX + meterWidth + 38, meterY + meterHeight / 2);
+
+      // Draw "Ready to Kick" text when not charging
+      if (!player.isCharging) {
+        s.textAlign(s.CENTER, s.CENTER);
+        s.textSize(14);
+        s.fill(255, 200, 0);
+        s.text("TAP TO KICK", s.width / 2, controlPanelY - 10);
+      }
+
+      // Draw "Kick!" text when charging
+      if (player.isCharging) {
+        s.textAlign(s.CENTER, s.CENTER);
+        s.textSize(20);
+        s.fill(255, 0, 0);
+        s.text("KICK!", s.width / 2, controlPanelY - 10);
+      }
+
+      s.pop();
+    }
 
     // Draw minimap
     const miniMapWidth = 100;
@@ -657,11 +852,6 @@ const sketch = (s) => {
     );
     s.fill(255);
     s.circle(miniMapX + ball.ballX * scaleX, miniMapY + ball.ballY * scaleY, 3);
-
-    if (player.isCharging) {
-      s.fill(255, 0, 0);
-      s.rect(10, s.height - 20, player.kickPower * 100, 10);
-    }
   }
 
   function drawGameOver(s) {
